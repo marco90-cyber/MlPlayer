@@ -79,13 +79,10 @@ import kotlin.math.sqrt
 
 @Composable
 fun NowPlayingPanel(env: AppEnv) {
-    Column(
-        Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)
-    ) {
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         HeaderPlate(env)
         MetersPlate(env, Modifier)
-        DisplayPlate(env)
+        DisplayPlate(env, Modifier.weight(1f))
         ControlsPlate(env)
     }
 }
@@ -312,8 +309,67 @@ private fun fmtTime(ms: Long): String {
     return String.format(Locale.ITALY, "%02d:%02d", s / 60, s % 60)
 }
 
-private fun formatLine(t: Track, runtimeRate: Int): String {
-    val sr = if (t.sampleRate > 0) t.sampleRate else runtimeRate
+private fun khz(sr: Int): String =
+    if (sr % 1000 == 0) "${sr / 1000} kHz" else String.format(Locale.ITALY, "%.1f kHz", sr / 1000.0)
+
+/** Dati del brano, qualità della sorgente e dell'uscita, dispositivo in uso. */
+@Composable
+private fun InfoSection(env: AppEnv, t: Track?, modifier: Modifier) {
+    val f = Hifi.finish
+    val e = env.engine
+    val om = e.outputMonitor
+    val eq = env.settings.eq
+    Column(modifier, verticalArrangement = Arrangement.SpaceEvenly) {
+        Box(Modifier.fillMaxWidth().height(1.dp).background(f.vfdDim.copy(alpha = 0.6f)))
+        if (t != null) {
+            val brano = buildList {
+                if (t.trackNo > 0) add("n. ${t.trackNo}")
+                if (t.discNo > 0) add("disco ${t.discNo}")
+                if (t.year > 0) add("${t.year}")
+                if (t.genre.isNotBlank()) add(t.genre)
+            }.joinToString(" · ").ifBlank { "nessun dato" }
+            InfoRow("BRANO", brano)
+            val src = buildList {
+                add(t.formatLabel)
+                if (t.bits > 0) add("${t.bits} bit")
+                if (t.sampleRate > 0) add(khz(t.sampleRate))
+                if (t.bitrateKbps > 0) add("${t.bitrateKbps} kbps")
+                if (t.size > 0) add(String.format(Locale.ITALY, "%.1f MB", t.size / 1048576.0))
+            }.joinToString(" · ")
+            InfoRow("SORGENTE", src)
+        } else {
+            InfoRow("BRANO", "—")
+            InfoRow("SORGENTE", "—")
+        }
+        val out = buildList {
+            if (e.trackEncoding.isNotBlank()) add(e.trackEncoding.removePrefix("PCM "))
+            if (e.trackSampleRate > 0) add(khz(e.trackSampleRate))
+            if (t != null && t.sampleRate > 0 && e.trackSampleRate > 0) {
+                add(if (e.trackSampleRate == t.sampleRate) "nativo" else "ricampionato")
+            }
+            if (e.trackOffload) add("offload")
+        }.joinToString(" · ").ifBlank { "in attesa" }
+        InfoRow("USCITA", out)
+        InfoRow("DISPOSITIVO", if (om.name.isNotBlank() && om.name != om.kind.label) "${om.kind.label} · ${om.name}" else om.kind.label)
+        val dsp = buildList {
+            add(if (eq.dspActive()) "attivo" else "bypass")
+            if (eq.enabled) add("EQ ${eq.bandCount} bande")
+            if (env.settings.adaptiveOutput) add("uscita adattiva")
+        }.joinToString(" · ")
+        InfoRow("DSP", dsp)
+    }
+}
+
+@Composable
+private fun InfoRow(key: String, value: String) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Vfd(key, 11.sp, Modifier.width(98.dp), alpha = 0.6f)
+        Vfd(value, 12.sp, Modifier.weight(1f))
+    }
+}
+
+private fun formatLine(t: Track): String {
+    val sr = t.sampleRate
     val parts = ArrayList<String>()
     parts.add(t.formatLabel)
     val q = ArrayList<String>()
@@ -325,7 +381,7 @@ private fun formatLine(t: Track, runtimeRate: Int): String {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun DisplayPlate(env: AppEnv) {
+private fun DisplayPlate(env: AppEnv, modifier: Modifier) {
     val f = Hifi.finish
     val e = env.engine
     val t = e.currentTrack
@@ -341,9 +397,9 @@ private fun DisplayPlate(env: AppEnv) {
         }
     }
 
-    Box(Modifier.fillMaxWidth().plate().padding(8.dp)) {
+    Box(modifier.fillMaxWidth().plate().padding(8.dp)) {
         Column(
-            Modifier.fillMaxWidth().displayWindow().padding(10.dp),
+            Modifier.fillMaxSize().displayWindow().padding(10.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(Modifier.fillMaxWidth().height(84.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -397,12 +453,13 @@ private fun DisplayPlate(env: AppEnv) {
             Row(verticalAlignment = Alignment.Bottom) {
                 Vfd(fmtTime(pos), 22.sp)
                 Vfd(
-                    if (t != null) formatLine(t, e.trackSampleRate) else "",
+                    if (t != null) formatLine(t) else "",
                     12.sp, Modifier.weight(1f).padding(horizontal = 8.dp).padding(bottom = 3.dp)
                         .let { it }, alpha = 0.95f
                 )
                 Vfd(if (dur > 0) "-" + fmtTime(dur - pos) else "--:--", 13.sp, Modifier.padding(bottom = 3.dp), alpha = 0.8f)
             }
+            InfoSection(env, t, Modifier.weight(1f).fillMaxWidth())
         }
     }
 }
