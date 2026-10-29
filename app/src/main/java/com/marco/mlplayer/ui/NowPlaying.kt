@@ -116,14 +116,14 @@ private fun HeaderPlate(env: AppEnv) {
 
 // ---------------------------------------------------------------- VU meter
 
-/** Stato delle lancette: livello RMS con balistica VU (0 VU = -18 dBFS). */
+/** Stato delle lancette: livello RMS con balistica VU (0 VU = -14 dBFS). */
 private class VuState {
     var frame by mutableIntStateOf(0)
     val needle = FloatArray(2)
     val peakUntil = LongArray(2)
 }
 
-private const val VU_REF_DBFS = -18f
+private const val VU_REF_DBFS = -14f
 private const val VU_MAX_DB = 3f
 private const val VU_N = 2048
 
@@ -184,8 +184,8 @@ private fun MetersPlate(env: AppEnv, modifier: Modifier) {
             Engraved("SENS", 9.sp, dim = true, spacing = 2.sp)
             HSpace(8.dp)
             MetalButton("Riduci sensibilità", {
-                fb.tapScreen(); s.vuSens = (s.vuSens - 2).coerceAtLeast(-20)
-            }, width = 40.dp, height = 30.dp) {
+                fb.tapScreen(); s.vuSens = (s.vuSens - 3).coerceAtLeast(-24)
+            }, width = 48.dp, height = 36.dp) {
                 Icon(Icons.Filled.Remove, null, tint = f.btnIcon, modifier = Modifier.size(18.dp))
             }
             Engraved(
@@ -193,8 +193,8 @@ private fun MetersPlate(env: AppEnv, modifier: Modifier) {
                 modifier = Modifier.width(54.dp), align = androidx.compose.ui.text.style.TextAlign.Center
             )
             MetalButton("Aumenta sensibilità", {
-                fb.tapScreen(); s.vuSens = (s.vuSens + 2).coerceAtMost(20)
-            }, width = 40.dp, height = 30.dp) {
+                fb.tapScreen(); s.vuSens = (s.vuSens + 3).coerceAtMost(12)
+            }, width = 48.dp, height = 36.dp) {
                 Icon(Icons.Filled.Add, null, tint = f.btnIcon, modifier = Modifier.size(18.dp))
             }
             HSpace(8.dp)

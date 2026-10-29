@@ -7,7 +7,7 @@ Lettore musicale per Android con grafica da **impianto hi-fi Hi-Res**: frontale 
 - Solo in verticale. Sezioni nella barra in basso: Libreria · In riproduzione · EQ · Analizzatore · Uscita · Impostazioni
 - **Sei finiture** (Impostazioni → Aspetto, con anteprima): Nero e blu, Champagne, Argento, Noce, Bianco, Retrò 97 (ispirata ai lettori per PC di fine anni '90)
 - Opzioni di aspetto: luce degli strumenti, velocità delle lancette VU (300 ms / 120 ms), bagliore del display, texture spazzolata, copertine nei menu, schermo sempre acceso
-- **In riproduzione**: due VU meter (RMS con balistica VU, 0 VU = -18 dBFS) con spia di picco, display con copertina, brano, formato, bit/kHz e barra a segmenti (tocca o trascina per spostarti), tasti di trasporto, manopole **Bassi / Volume / Alti** che si girano col dito con tic tattile e sonoro
+- **In riproduzione**: due VU meter (RMS con balistica VU, 0 VU = -14 dBFS) con spia di picco, display con copertina, brano, formato, bit/kHz e barra a segmenti (tocca o trascina per spostarti), tasti di trasporto, manopole **Bassi / Volume / Alti** che si girano col dito con tic tattile e sonoro
 - Spie del frontale: HI-RES, DSP, DAC (uscita USB), BYPASS
 - Libreria: Artisti, Album, Brani, Generi, Cartelle, Mescola brani, Mescola album; copertine incorporate o `cover.jpg` / `folder.jpg`
 - Formati: MP3, FLAC, WAV, OGG, Opus, AAC, M4A, MKA, AMR (M4A/ALAC dipende dal telefono)
