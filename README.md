@@ -11,7 +11,7 @@ Lettore musicale per Android con grafica da **impianto hi-fi Hi-Res**: frontale 
 - Spie del frontale: HI-RES, DSP, DAC (uscita USB), BYPASS
 - Libreria: Artisti, Album, Brani, Generi, Cartelle, Mescola brani, Mescola album; copertine incorporate o `cover.jpg` / `folder.jpg`
 - Formati: MP3, FLAC, WAV, OGG, Opus, AAC, M4A, MKA, AMR (M4A/ALAC dipende dal telefono)
-- **Equalizzatore** di MLEqualizer (3-32 bande, Param., preset Poweramp, true-peak limiter, tono caldo/freddo) e **analizzatore** (picchi, RMS, PPM, goniometro, 1/3 d'ottava) con i colori della finitura
+- **Equalizzatore** di MLEqualizer (3-32 bande, Param., preset Poweramp, true-peak limiter, tono caldo/freddo, sezione Stereo con bilanciamento/espansione/mono, ReplayGain brano/album con anti-clipping) e **analizzatore** (picchi, RMS, PPM, goniometro, 1/3 d'ottava) con i colori della finitura
 - Uscita adattiva al DAC (bit e kHz) con ricampionatore soxr
 - **Aggiornamenti** (Impostazioni → Aggiornamenti): controlla l'ultima release su GitHub e scarica l'APK
 - Riproduzione in background con notifica e controlli multimediali

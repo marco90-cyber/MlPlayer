@@ -87,7 +87,7 @@ fun NowPlayingPanel(env: AppEnv) {
 private fun HeaderPlate(env: AppEnv) {
     val e = env.engine
     val eq = env.settings.eq
-    val dsp = eq.enabled || eq.bassPercent != 0 || eq.treblePercent != 0
+    val dsp = eq.dspActive()
     val usb = e.outputMonitor.kind == OutKind.Usb
     Row(
         Modifier.fillMaxWidth().plate().padding(horizontal = 14.dp, vertical = 10.dp),
