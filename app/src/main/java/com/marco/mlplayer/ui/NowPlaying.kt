@@ -18,9 +18,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -75,9 +79,12 @@ import kotlin.math.sqrt
 
 @Composable
 fun NowPlayingPanel(env: AppEnv) {
-    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(
+        Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)
+    ) {
         HeaderPlate(env)
-        MetersPlate(env, Modifier.weight(1f).heightIn(min = 110.dp))
+        MetersPlate(env, Modifier)
         DisplayPlate(env)
         ControlsPlate(env)
     }
@@ -158,7 +165,7 @@ private fun MetersPlate(env: AppEnv, modifier: Modifier) {
                     var s = 0.0
                     for (i in 0 until VU_N) s += buf[i] * buf[i]
                     val rms = sqrt(s / VU_N).toFloat()
-                    if (rms > 1e-6f) target = vuFrac(20f * log10(rms) - VU_REF_DBFS)
+                    if (rms > 1e-6f) target = vuFrac(20f * log10(rms) - VU_REF_DBFS + env.settings.vuSens)
                     if (pk[c] >= 0.89f) st.peakUntil[c] = System.currentTimeMillis() + 600
                 }
                 st.needle[c] += (target - st.needle[c]) * k
@@ -170,22 +177,43 @@ private fun MetersPlate(env: AppEnv, modifier: Modifier) {
     }
 
     Column(modifier.fillMaxWidth().plate().padding(horizontal = 12.dp, vertical = 8.dp)) {
+        val s = env.settings
+        val fb = env.feedback
+        val f = Hifi.finish
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Screw()
-            Engraved("LEVEL", 9.sp, dim = true, spacing = 3.sp, modifier = Modifier.weight(1f), align = androidx.compose.ui.text.style.TextAlign.Center)
+            HSpace(8.dp)
+            Engraved("LEVEL", 9.sp, dim = true, spacing = 3.sp, modifier = Modifier.weight(1f))
+            Engraved("SENS", 9.sp, dim = true, spacing = 2.sp)
+            HSpace(8.dp)
+            MetalButton("Riduci sensibilità", {
+                fb.tapScreen(); s.vuSens = (s.vuSens - 2).coerceAtLeast(-20)
+            }, width = 40.dp, height = 30.dp) {
+                Icon(Icons.Filled.Remove, null, tint = f.btnIcon, modifier = Modifier.size(18.dp))
+            }
+            Engraved(
+                String.format(Locale.ITALY, "%+d dB", s.vuSens), 11.sp, spacing = 0.5.sp,
+                modifier = Modifier.width(54.dp), align = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            MetalButton("Aumenta sensibilità", {
+                fb.tapScreen(); s.vuSens = (s.vuSens + 2).coerceAtMost(20)
+            }, width = 40.dp, height = 30.dp) {
+                Icon(Icons.Filled.Add, null, tint = f.btnIcon, modifier = Modifier.size(18.dp))
+            }
+            HSpace(8.dp)
             Screw()
         }
-        VSpace(6.dp)
-        Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            VuMeter(st, 0, "LEFT", Modifier.weight(1f).fillMaxHeight())
-            VuMeter(st, 1, "RIGHT", Modifier.weight(1f).fillMaxHeight())
+        VSpace(8.dp)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            VuMeter(st, 0, "LEFT", Modifier.weight(1f).aspectRatio(1.6f))
+            VuMeter(st, 1, "RIGHT", Modifier.weight(1f).aspectRatio(1.6f))
         }
     }
 }
 
 private val vuMarks = listOf(-20f, -10f, -7f, -5f, -3f, -2f, -1f, 0f, 1f, 2f, 3f)
 private val vuMinor = listOf(-15f, -8f, -6f, -4f, -2.5f, -1.5f, -0.5f, 0.5f, 1.5f, 2.5f)
-private val vuLabels = mapOf(-20f to "20", -10f to "10", -5f to "5", -3f to "3", -1f to "1", 0f to "0", 1f to "1", 3f to "3")
+private val vuLabels = mapOf(-20f to "20", -10f to "10", -5f to "5", -3f to "3", -1f to "1", 0f to "0", 1f to "+1", 3f to "+3")
 
 @Composable
 private fun VuMeter(st: VuState, ch: Int, label: String, modifier: Modifier) {
@@ -211,9 +239,9 @@ private fun VuMeter(st: VuState, ch: Int, label: String, modifier: Modifier) {
             radius = w, center = Offset(w / 2f, h * 0.6f)
         )
         val px = w / 2f
-        val py = h * 1.28f
-        val rs = minOf(h * 0.98f, w * 0.78f)
-        val span = 42f
+        val rs = w * 0.62f
+        val py = h * 0.36f + rs
+        val span = 40f
         fun ang(frac: Float) = ((-span + 2f * span * frac) * PI / 180f).toFloat()
         fun pt(a: Float, r: Float) = Offset(px + r * sin(a), py - r * cos(a))
 
@@ -244,13 +272,13 @@ private fun VuMeter(st: VuState, ch: Int, label: String, modifier: Modifier) {
             val nc = cv.nativeCanvas
             paint.textSize = (h * 0.095f).coerceIn(8.dp.toPx(), 12.dp.toPx())
             for ((m, t) in vuLabels) {
-                val p = pt(ang(vuFrac(m)), rs + h * 0.16f)
+                val p = pt(ang(vuFrac(m)), rs + h * 0.13f)
                 paint.color = (if (m > 0f) f.scaleRed else f.scale).toArgb()
                 nc.drawText(t, p.x, p.y + paint.textSize * 0.35f, paint)
             }
             paint.color = f.meterText.toArgb()
             paint.textSize = (h * 0.13f).coerceIn(10.dp.toPx(), 15.dp.toPx())
-            nc.drawText("VU", px, h * 0.74f, paint)
+            nc.drawText("VU", px, h * 0.76f, paint)
             paint.textSize = (h * 0.075f).coerceIn(7.dp.toPx(), 10.dp.toPx())
             paint.textAlign = Paint.Align.RIGHT
             nc.drawText(label, w - 8.dp.toPx(), h - 7.dp.toPx(), paint)
@@ -269,7 +297,6 @@ private fun VuMeter(st: VuState, ch: Int, label: String, modifier: Modifier) {
         clipRect {
             val tip = pt(na, rs + h * 0.1f)
             val base = pt(na, rs * 0.38f)
-            drawLine(Color(0x33000000), base + Offset(2f, 3f), tip + Offset(2f, 3f), 2.dp.toPx(), StrokeCap.Round)
             drawLine(f.needle, base, tip, 1.6.dp.toPx(), StrokeCap.Round)
         }
         // copertura del perno

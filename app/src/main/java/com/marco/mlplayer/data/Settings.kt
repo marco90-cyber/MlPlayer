@@ -66,6 +66,8 @@ class Settings(context: Context) {
     var meterLight by IntPref(sp, "meter_light", 2)
     /** Lancette dei VU: 0 = morbide (300 ms), 1 = rapide (120 ms) */
     var vuSpeed by IntPref(sp, "vu_speed", 0)
+    /** Sensibilità dei VU in dB (-20..+20): sposta solo le lancette. */
+    var vuSens by IntPref(sp, "vu_sens", 0)
     var displayGlow by BoolPref(sp, "display_glow", true)
     var brushedTexture by BoolPref(sp, "brushed_texture", true)
     var coverInMenu by BoolPref(sp, "cover_in_menu", true)
