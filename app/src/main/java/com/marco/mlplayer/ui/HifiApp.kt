@@ -52,6 +52,7 @@ fun HifiApp(env: AppEnv) {
     Hifi.finish = Finishes.byId(s.finishId)
     Hifi.glow = s.displayGlow
     Hifi.brushed = s.brushedTexture
+    Hifi.vuRef = s.vuRef
     Hifi.light = when (s.meterLight) { 0 -> 0.45f; 1 -> 0.75f; else -> 1f }
     val f = Hifi.finish
 

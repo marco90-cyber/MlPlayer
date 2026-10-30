@@ -3,6 +3,7 @@ package com.marco.mlplayer.ui
 import android.graphics.Typeface
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
@@ -189,6 +190,8 @@ object Hifi {
     var brushed by mutableStateOf(true)
     /** Intensità della luce degli strumenti (0,4 .. 1). */
     var light by mutableFloatStateOf(1f)
+    /** Riferimento dei VU (vedi Settings.vuRef). */
+    var vuRef by mutableIntStateOf(-14)
 
     val f: Finish get() = finish
 

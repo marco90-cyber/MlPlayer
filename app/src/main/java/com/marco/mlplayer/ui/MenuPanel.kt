@@ -212,6 +212,11 @@ private fun AppearanceView(env: AppEnv) {
         OptionRow("Luce degli strumenti", lights[s.meterLight.coerceIn(0, 2)]) {
             env.feedback.tapScreen(); s.meterLight = (s.meterLight + 1) % 3
         }
+        OptionRow("Riferimento VU", vuRefLabel(s.vuRef)) {
+            env.feedback.tapScreen()
+            val i = VU_REFS.indexOf(s.vuRef)
+            s.vuRef = VU_REFS[(i + 1).mod(VU_REFS.size)]
+        }
         OptionRow("Lancette VU", if (s.vuSpeed == 1) "Rapide (120 ms)" else "Morbide (300 ms)") {
             env.feedback.tapScreen(); s.vuSpeed = (s.vuSpeed + 1) % 2
         }

@@ -123,7 +123,16 @@ private class VuState {
     val peakUntil = LongArray(2)
 }
 
-private const val VU_REF_DBFS = -14f
+/**
+ * Riferimenti selezionabili, dal meno al più sensibile: 0 = scala in dBFS di picco (come il PPM),
+ * altrimenti il livello RMS in dBFS che corrisponde a 0 VU.
+ */
+val VU_REFS = listOf(0, -12, -14, -18, -20)
+
+fun vuRefLabel(ref: Int): String = if (ref == 0) "dBFS picco" else "0 VU = ${ref} dBFS".replace("-", "−")
+
+/** Senza nuovi campioni per questo tempo (o in pausa) le lancette tornano a riposo. */
+private const val VU_SILENCE_MS = 300L
 private const val VU_MAX_DB = 3f
 private const val VU_N = 2048
 
@@ -142,34 +151,49 @@ private fun MetersPlate(env: AppEnv, modifier: Modifier) {
         val l = FloatArray(VU_N)
         val r = FloatArray(VU_N)
         val pk = FloatArray(2)
+        val hold = FloatArray(2)
         var lastPub = 0L
+        var lastFreshMs = 0L
         var last = 0L
         while (isActive) {
             val now = withFrameNanos { it }
             val dt = if (last == 0L) 0.016f else ((now - last) / 1e9f).coerceIn(0.001f, 0.1f)
             last = now
+            val ref = env.settings.vuRef
+            val peakMode = ref == 0
+            val nowMs = System.currentTimeMillis()
+            // L'audio arriva a blocchi: tra un blocco e l'altro si tiene l'ultimo livello misurato.
             val pub = an.published
-            val playing = pub != lastPub && pub > VU_N
+            val fresh = pub != lastPub && pub > VU_N
             lastPub = pub
-            an.takePeaks(pk)
-            val tau = if (env.settings.vuSpeed == 1) 0.12f else 0.30f
-            val k = 1f - exp(-dt / tau)
-            if (playing) an.copyLatest(l, r, VU_N)
-            for (c in 0..1) {
-                var target = 0f
-                if (playing) {
-                    val buf = if (c == 0) l else r
-                    var s = 0.0
-                    for (i in 0 until VU_N) s += buf[i] * buf[i]
-                    val rms = sqrt(s / VU_N).toFloat()
-                    if (rms > 1e-6f) target = vuFrac(20f * log10(rms) - VU_REF_DBFS + env.settings.vuSens)
-                    if (pk[c] >= 0.89f) st.peakUntil[c] = System.currentTimeMillis() + 600
+            if (fresh) {
+                lastFreshMs = nowMs
+                an.takePeaks(pk)
+                an.copyLatest(l, r, VU_N)
+                for (c in 0..1) {
+                    if (peakMode) {
+                        hold[c] = if (pk[c] > 1e-6f) vuFrac(20f * log10(pk[c])) else 0f
+                    } else {
+                        val buf = if (c == 0) l else r
+                        var sum = 0.0
+                        for (i in 0 until VU_N) sum += buf[i] * buf[i]
+                        val rms = sqrt(sum / VU_N).toFloat()
+                        hold[c] = if (rms > 1e-6f) vuFrac(20f * log10(rms) - ref) else 0f
+                    }
+                    if (pk[c] >= 0.89f) st.peakUntil[c] = nowMs + 600
                 }
-                st.needle[c] += (target - st.needle[c]) * k
+            }
+            val silent = !env.engine.isPlaying || nowMs - lastFreshMs > VU_SILENCE_MS
+            val tau = if (env.settings.vuSpeed == 1) 0.12f else 0.30f
+            for (c in 0..1) {
+                val target = if (silent) 0f else hold[c]
+                // in dBFS di picco: salita quasi istantanea, discesa lenta come un PPM
+                val t = if (peakMode) (if (target > st.needle[c]) 0.01f else 0.6f) else tau
+                st.needle[c] += (target - st.needle[c]) * (1f - exp(-dt / t))
             }
             st.frame++
             // a riposo (nessun suono e lancette ferme) si aggiorna di rado
-            if (!playing && st.needle[0] < 0.002f && st.needle[1] < 0.002f) delay(120)
+            if (silent && st.needle[0] < 0.002f && st.needle[1] < 0.002f) delay(120)
         }
     }
 
@@ -181,19 +205,21 @@ private fun MetersPlate(env: AppEnv, modifier: Modifier) {
             Screw()
             HSpace(8.dp)
             Engraved("LEVEL", 9.sp, dim = true, spacing = 3.sp, modifier = Modifier.weight(1f))
-            Engraved("SENS", 9.sp, dim = true, spacing = 2.sp)
-            HSpace(8.dp)
+            val idx = VU_REFS.indexOf(s.vuRef).coerceAtLeast(0)
             MetalButton("Riduci sensibilità", {
-                fb.tapScreen(); s.vuSens = (s.vuSens - 3).coerceAtLeast(-24)
+                fb.tapScreen(); s.vuRef = VU_REFS[(idx - 1).coerceAtLeast(0)]
             }, width = 48.dp, height = 36.dp) {
                 Icon(Icons.Filled.Remove, null, tint = f.btnIcon, modifier = Modifier.size(18.dp))
             }
-            Engraved(
-                String.format(Locale.ITALY, "%+d dB", s.vuSens), 11.sp, spacing = 0.5.sp,
-                modifier = Modifier.width(54.dp), align = androidx.compose.ui.text.style.TextAlign.Center
-            )
+            Column(Modifier.width(66.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Engraved(if (s.vuRef == 0) "PICCO" else "0 VU", 8.sp, dim = true, spacing = 1.sp)
+                Engraved(
+                    if (s.vuRef == 0) "dBFS" else "${s.vuRef} dBFS".replace("-", "−"),
+                    11.sp, spacing = 0.5.sp
+                )
+            }
             MetalButton("Aumenta sensibilità", {
-                fb.tapScreen(); s.vuSens = (s.vuSens + 3).coerceAtMost(12)
+                fb.tapScreen(); s.vuRef = VU_REFS[(idx + 1).coerceAtMost(VU_REFS.lastIndex)]
             }, width = 48.dp, height = 36.dp) {
                 Icon(Icons.Filled.Add, null, tint = f.btnIcon, modifier = Modifier.size(18.dp))
             }
@@ -275,7 +301,10 @@ private fun VuMeter(st: VuState, ch: Int, label: String, modifier: Modifier) {
             }
             paint.color = f.meterText.toArgb()
             paint.textSize = (h * 0.13f).coerceIn(10.dp.toPx(), 15.dp.toPx())
-            nc.drawText("VU", px, h * 0.76f, paint)
+            val ref = Hifi.vuRef
+            nc.drawText(if (ref == 0) "dBFS" else "VU", px, h * 0.72f, paint)
+            paint.textSize = (h * 0.065f).coerceIn(7.dp.toPx(), 9.dp.toPx())
+            nc.drawText(if (ref == 0) "PICCO" else "0 VU = ${ref} dBFS".replace("-", "−"), px, h * 0.84f, paint)
             paint.textSize = (h * 0.075f).coerceIn(7.dp.toPx(), 10.dp.toPx())
             paint.textAlign = Paint.Align.RIGHT
             nc.drawText(label, w - 8.dp.toPx(), h - 7.dp.toPx(), paint)

@@ -74,6 +74,7 @@ private const val NG = 256
 private const val PUB_EVERY = 8       // numeri aggiornati ogni ~0,26 s
 private const val HOLD_FRAMES = 60    // tenuta dei massimi (~2 s)
 private const val FALL_NUM = 0.25f    // discesa automatica dei massimi (dB per aggiornamento)
+private const val SILENCE_MS = 300L   // senza nuovi campioni per questo tempo si considera silenzio
 
 private fun toDb(v: Float): Float = if (v <= 1e-5f) FLOOR else max(FLOOR, 20f * log10(v))
 
@@ -137,6 +138,7 @@ private class AnalyzerState {
     private val fft = Fft(NFFT)
     private val win = FloatArray(NFFT) { (0.5 - 0.5 * cos(2.0 * PI * it / (NFFT - 1))).toFloat() }
     private var lastPub = 0L
+    private var lastFreshMs = 0L
 
     fun reset() {
         for (c in 0..1) {
@@ -174,8 +176,14 @@ private class AnalyzerState {
 
     private fun step(an: Analyzer) {
         val pub = an.published
-        val active = pub != lastPub && pub > NFFT
+        val fresh = pub != lastPub && pub > NFFT
         lastPub = pub
+        // L'audio arriva a blocchi: se non è arrivato niente di nuovo ma il suono è recente,
+        // si tengono i valori attuali invece di trattarlo come silenzio.
+        val nowMs = System.currentTimeMillis()
+        if (fresh) lastFreshMs = nowMs
+        else if (nowMs - lastFreshMs < SILENCE_MS) return
+        val active = fresh
         an.takePeaks(pk)
 
         for (c in 0..1) {
