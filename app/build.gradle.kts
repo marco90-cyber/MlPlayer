@@ -29,7 +29,7 @@ android {
     }
 
     // Firma privata: il keystore arriva dai segreti di GitHub (KEYSTORE_BASE64 decodificato dal workflow).
-    // Se i segreti non ci sono, si usa la chiave di debug.
+    // Nessuna firma di debug per la release: senza segreti il workflow si ferma.
     val ksFile = System.getenv("MLPLAYER_KEYSTORE")?.let { file(it) }?.takeIf { it.exists() }
     signingConfigs {
         if (ksFile != null) {
@@ -45,7 +45,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = if (ksFile != null) signingConfigs.getByName("private") else signingConfigs.getByName("debug")
+            signingConfig = if (ksFile != null) signingConfigs.getByName("private") else null
         }
     }
 

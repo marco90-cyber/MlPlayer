@@ -60,7 +60,8 @@ jobs:
             echo "MLPLAYER_KEYSTORE=$RUNNER_TEMP/mlplayer.jks" >> "$GITHUB_ENV"
             echo "Firma: chiave privata"
           else
-            echo "::warning::Segreto KEYSTORE_BASE64 assente: APK firmato con la chiave di debug"
+            echo "::error::Segreti della firma assenti (KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD): niente APK con la chiave di debug"
+            exit 1
           fi
 
       - name: Compila APK (release)
@@ -83,6 +84,18 @@ jobs:
           mkdir -p dist
           cp app/build/outputs/apk/release/app-release.apk dist/MLPlayer-1.0.${{ github.run_number }}.apk
 
+      - name: Verifica la firma
+        shell: bash
+        run: |
+          SIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner
+          "$SIGNER" verify --print-certs dist/*.apk | tee signer.txt
+          if grep -qi "CN=Android Debug" signer.txt; then
+            echo "::error::L'APK risulta firmato con la chiave di debug"
+            exit 1
+          fi
+          SHA=$(grep -m1 "SHA-256 digest" signer.txt | sed 's/.*: //')
+          echo "CERT_SHA256=$SHA" >> "$GITHUB_ENV"
+
       - uses: actions/upload-artifact@v4
         with:
           name: MLPlayer-apk
@@ -93,4 +106,8 @@ jobs:
         with:
           tag_name: build-${{ github.run_number }}
           name: MLPlayer 1.0.${{ github.run_number }}
+          body: |
+            Firmato con la chiave privata di MLPlayer.
+            Certificato SHA-256: ${{ env.CERT_SHA256 }}
           files: dist/*.apk
+

@@ -32,7 +32,8 @@ Il workflow firma l'APK con una chiave privata presa dai segreti del repository
 | `KEY_ALIAS` | alias della chiave |
 | `KEY_PASSWORD` | password della chiave |
 
-Senza segreti l'APK viene firmato con la chiave di debug (e la build lo segnala con un avviso).
+Senza segreti la build si ferma: non vengono più pubblicati APK con la chiave di debug. Dopo ogni build
+il workflow verifica la firma e scrive l'impronta SHA-256 del certificato nella release.
 Per installare gli aggiornamenti sopra la versione precedente la chiave deve restare sempre la stessa.
 
 ## Compilazione
