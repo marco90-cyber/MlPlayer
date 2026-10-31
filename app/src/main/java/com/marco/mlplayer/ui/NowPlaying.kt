@@ -504,7 +504,7 @@ private fun ControlsPlate(env: AppEnv) {
     val f = Hifi.finish
     val e = env.engine
     val s = env.settings
-    val eq = s.eq
+    val eq = s.dsp
     val fb = env.feedback
     Column(
         Modifier.fillMaxWidth().plate().padding(12.dp),
