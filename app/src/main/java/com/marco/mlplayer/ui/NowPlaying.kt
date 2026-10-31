@@ -59,7 +59,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.marco.mlplayer.audio.EqMath
+import com.marco.mlplayer.audio.DspSettings
 import com.marco.mlplayer.audio.OutKind
 import com.marco.mlplayer.data.Track
 import com.marco.mlplayer.data.rememberCover
@@ -90,8 +90,8 @@ fun NowPlayingPanel(env: AppEnv) {
 @Composable
 private fun HeaderPlate(env: AppEnv) {
     val e = env.engine
-    val eq = env.settings.eq
-    val dsp = eq.dspActive()
+    val eq = env.settings.dsp
+    val dsp = eq.master
     val usb = e.outputMonitor.kind == OutKind.Usb
     Row(
         Modifier.fillMaxWidth().plate().padding(horizontal = 14.dp, vertical = 10.dp),
@@ -347,7 +347,7 @@ private fun InfoSection(env: AppEnv, t: Track?, modifier: Modifier) {
     val f = Hifi.finish
     val e = env.engine
     val om = e.outputMonitor
-    val eq = env.settings.eq
+    val eq = env.settings.dsp
     Column(modifier, verticalArrangement = Arrangement.SpaceEvenly) {
         Box(Modifier.fillMaxWidth().height(1.dp).background(f.vfdDim.copy(alpha = 0.6f)))
         if (t != null) {
@@ -381,8 +381,8 @@ private fun InfoSection(env: AppEnv, t: Track?, modifier: Modifier) {
         InfoRow("USCITA", out)
         InfoRow("DISPOSITIVO", if (om.name.isNotBlank() && om.name != om.kind.label) "${om.kind.label} · ${om.name}" else om.kind.label)
         val dsp = buildList {
-            add(if (eq.dspActive()) "attivo" else "bypass")
-            if (eq.enabled) add("EQ ${eq.bandCount} bande")
+            add(if (eq.master) "attivo" else "bypass")
+            if (eq.master) com.marco.mlplayer.audio.EqAudioProcessor.activeModules(eq).takeIf { it.isNotEmpty() }?.let { add(it.joinToString(" · ")) }
             if (env.settings.adaptiveOutput) add("uscita adattiva")
         }.joinToString(" · ")
         InfoRow("DSP", dsp)
@@ -534,10 +534,10 @@ private fun ControlsPlate(env: AppEnv) {
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.Bottom) {
             MetalKnob(
-                eq.bassPercent / 100f, 54.dp, "BASSI",
-                String.format(Locale.ITALY, "+%.1f dB · %s", EqMath.toneDb(eq.bassPercent), hz(eq.bassFreq)),
+                (if (eq.tone) eq.bassDb else 0f) / DspSettings.TONE_MAX_DB, 54.dp, "BASSI",
+                String.format(Locale.ITALY, "+%.1f dB · %s", if (eq.tone) eq.bassDb else 0f, hz(eq.bassFreq)),
                 onStep = { fb.wheelStep() },
-            ) { v -> s.updateEq { it.copy(bassPercent = (v * 100f).roundToInt()) } }
+            ) { v -> s.updateDsp { it.copy(tone = true, bassDb = (v * DspSettings.TONE_MAX_DB * 10f).roundToInt() / 10f) } }
             val vol = e.volume
             MetalKnob(
                 gainToKnob(vol), 92.dp, "VOLUME",
@@ -546,10 +546,10 @@ private fun ControlsPlate(env: AppEnv) {
                 onStep = { fb.wheelStep() },
             ) { v -> e.changeVolume(knobToGain(v) - e.volume) }
             MetalKnob(
-                eq.treblePercent / 100f, 54.dp, "ALTI",
-                String.format(Locale.ITALY, "+%.1f dB · %s", EqMath.toneDb(eq.treblePercent), hz(eq.trebleFreq)),
+                (if (eq.tone) eq.trebleDb else 0f) / DspSettings.TONE_MAX_DB, 54.dp, "ALTI",
+                String.format(Locale.ITALY, "+%.1f dB · %s", if (eq.tone) eq.trebleDb else 0f, hz(eq.trebleFreq)),
                 onStep = { fb.wheelStep() },
-            ) { v -> s.updateEq { it.copy(treblePercent = (v * 100f).roundToInt()) } }
+            ) { v -> s.updateDsp { it.copy(tone = true, trebleDb = (v * DspSettings.TONE_MAX_DB * 10f).roundToInt() / 10f) } }
         }
     }
 }

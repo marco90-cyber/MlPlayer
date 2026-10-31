@@ -86,6 +86,9 @@ class AppEnv(val app: MLPlayerApp) {
     val engine get() = app.engine
     val feedback get() = app.feedback
 
+    /** Curva calcolata dal motore nativo per l'equalizzatore. */
+    val preview by lazy { com.marco.mlplayer.audio.DspPreview() }
+
     var actions: Actions? = null
 
     var tab by mutableStateOf(Tab.NowPlaying)
