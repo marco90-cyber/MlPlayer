@@ -173,6 +173,15 @@ fun AppEnv.genresScreen(): MenuScreen = MenuScreen("Generi", cache = true) {
 
 fun AppEnv.settingsItems(): List<MenuItem> = listOf(
     MenuItem("Aspetto", value = Hifi.finish.name, chevron = true) { settingsNav.push(AppearanceScreen) },
+    // stile degli interruttori dell'equalizzatore (MLTheme, come in MLauncher)
+    MenuItem(
+        "Stile interruttori",
+        value = com.marco.mltheme.SWITCH_STYLES.firstOrNull { it.first == com.marco.mltheme.MLThemeSettings.get(app).switchStyle }?.second,
+    ) {
+        val ml = com.marco.mltheme.MLThemeSettings.get(app)
+        val keys = com.marco.mltheme.SWITCH_STYLES.map { it.first }
+        ml.switchStyle = keys[(keys.indexOf(ml.switchStyle) + 1) % keys.size]
+    },
     MenuItem("Suoni e tatto", chevron = true) { settingsNav.push(soundScreen()) },
     MenuItem("Libreria", chevron = true) { settingsNav.push(libraryScreen()) },
     MenuItem("Equalizzatore", chevron = true) { tab = Tab.Eq },

@@ -56,12 +56,15 @@ fun HifiApp(env: AppEnv) {
     Hifi.light = when (s.meterLight) { 0 -> 0.45f; 1 -> 0.75f; else -> 1f }
     val f = Hifi.finish
 
-    MaterialTheme(
-        colorScheme = darkColorScheme(
-            primary = f.vfd, surface = f.scrPanel, background = f.scrBg, onSurface = Color.White,
-        )
-    ) {
-        HifiContent(env)
+    val switchStyle = com.marco.mltheme.MLThemeSettings.get(androidx.compose.ui.platform.LocalContext.current).switchStyle
+    androidx.compose.runtime.CompositionLocalProvider(com.marco.mltheme.LocalSwitchStyle provides switchStyle) {
+        MaterialTheme(
+            colorScheme = darkColorScheme(
+                primary = f.vfd, surface = f.scrPanel, background = f.scrBg, onSurface = Color.White,
+            )
+        ) {
+            HifiContent(env)
+        }
     }
 }
 
