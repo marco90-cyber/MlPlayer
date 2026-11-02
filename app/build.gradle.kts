@@ -100,7 +100,7 @@ dependencies {
     implementation("androidx.media3:media3-session:$media3")
     implementation("androidx.media3:media3-common:$media3")
     // decoder FFmpeg (ALAC, APE, WavPack, DSD e altri formati che Android non legge)
-    implementation("org.jellyfin.media3:media3-ffmpeg-decoder:1.5.1+1")
+    implementation("org.jellyfin.media3:media3-ffmpeg-decoder:1.5.+")
     // Oboe / AAudio per l'uscita esclusiva MMAP
     implementation("com.google.oboe:oboe:1.10.0")
     // driver USB per l'uscita esclusiva al DAC (decent-player, MIT)
