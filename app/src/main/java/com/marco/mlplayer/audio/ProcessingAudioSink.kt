@@ -253,25 +253,35 @@ class ProcessingAudioSink(
             baseFrames = playedFrames()
             needStart = false
         }
-        when (route) {
-            Route.UsbExclusive -> return outputs.usb.write(out, pts, outFloat)
+        return when (route) {
+            Route.UsbExclusive -> outputs.usb.write(out, pts, outFloat)
             Route.DirectTrack -> {
-                val t = directTrack ?: return true.also { out.position(out.limit()) }
-                val enc = if (outFloat) InternalDirectStream.ENC_FLOAT else InternalDirectStream.ENC_I16
-                return t.write(out, enc, outChannels) && !out.hasRemaining()
+                val t = directTrack
+                if (t == null) {
+                    out.position(out.limit())
+                    true
+                } else {
+                    val enc = if (outFloat) InternalDirectStream.ENC_FLOAT else InternalDirectStream.ENC_I16
+                    t.write(out, enc, outChannels) && !out.hasRemaining()
+                }
             }
             Route.AAudio -> {
-                val s = aaudio ?: return true.also { out.position(out.limit()) }
-                if (!pendingScaled) {
-                    // AAudio non ha un volume: guadagno software (al 100% il PCM resta intatto)
-                    if (volume < 0.9999f && outFloat) scaleFloat(out, volume)
-                    pendingScaled = true
+                val s = aaudio
+                if (s == null) {
+                    out.position(out.limit())
+                    true
+                } else {
+                    if (!pendingScaled) {
+                        // AAudio non ha un volume: guadagno software (al 100% il PCM resta intatto)
+                        if (volume < 0.9999f && outFloat) scaleFloat(out, volume)
+                        pendingScaled = true
+                    }
+                    val enc = if (outFloat) InternalDirectStream.ENC_FLOAT else InternalDirectStream.ENC_I16
+                    s.write(out, enc, outChannels)
+                    !out.hasRemaining()
                 }
-                val enc = if (outFloat) InternalDirectStream.ENC_FLOAT else InternalDirectStream.ENC_I16
-                s.write(out, enc, outChannels)
-                return !out.hasRemaining()
             }
-            else -> return true
+            Route.Android -> true
         }
     }
 
