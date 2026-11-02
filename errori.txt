@@ -1,0 +1,9 @@
+12:> Task :app:checkDebugAarMetadata FAILED
+17:* What went wrong:
+18:Execution failed for task ':app:checkDebugAarMetadata'.
+19:> Could not resolve all files for configuration ':app:debugRuntimeClasspath'.
+20:   > Could not find org.jellyfin.media3:media3-ffmpeg-decoder:1.5.1+1.
+33:org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:checkDebugAarMetadata'.
+57:Caused by: org.gradle.api.internal.artifacts.ivyservice.TypedResolveException: Could not resolve all files for configuration ':app:debugRuntimeClasspath'.
+144:Caused by: org.gradle.internal.resolve.ModuleVersionNotFoundException: Could not find org.jellyfin.media3:media3-ffmpeg-decoder:1.5.1+1.
+152:BUILD FAILED in 14s
