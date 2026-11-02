@@ -112,6 +112,8 @@ class ProcessingAudioSink(
         // apertura dell'uscita scelta (se non riesce si torna ad Android)
         var r = Route.Android
         var note = ""
+        var failure: com.marco.mlplayer.audio.direct.InternalDirectReason? = null
+        var probeSeen: InternalDirectStream.Probe? = null
         if (active && target != Route.Android) {
             when (target) {
                 Route.UsbExclusive -> {
@@ -130,11 +132,24 @@ class ProcessingAudioSink(
                             } else {
                                 t.release()
                                 note = "Android ha messo l'AudioTrack 24 bit nel mixer (nessuna uscita DIRECT)"
+                                failure = com.marco.mlplayer.audio.direct.InternalDirectReason.MIXED_BY_ANDROID
                             }
                         } else note = "AudioTrack 24 bit a ${fmt.sampleRate} Hz rifiutato"
                     }
-                    if (r == Route.Android) r = openAAudio(inputFormat, fmt, bitPerfect)?.also { fmt = it.second }?.first ?: r
-                    if (r == Route.Android && note.isEmpty()) note = "Uscita esclusiva AAudio non disponibile su questa uscita"
+                    if (r == Route.Android) {
+                        probeSeen = if (InternalDirectStream.nativeLoaded) InternalDirectStream.probe(fmt.channelCount) else null
+                        r = openAAudio(inputFormat, fmt, bitPerfect)?.also { fmt = it.second }?.first ?: r
+                    }
+                    if (r == Route.Android) {
+                        if (note.isEmpty()) note = "Uscita esclusiva AAudio non disponibile su questa uscita"
+                        failure = when {
+                            !InternalDirectStream.nativeLoaded -> com.marco.mlplayer.audio.direct.InternalDirectReason.NATIVE_MISSING
+                            monitor.kind == OutKind.Bluetooth -> com.marco.mlplayer.audio.direct.InternalDirectReason.BLUETOOTH
+                            probeSeen?.usable == false -> com.marco.mlplayer.audio.direct.InternalDirectReason.NO_AAUDIO
+                            failure != null -> failure
+                            else -> com.marco.mlplayer.audio.direct.InternalDirectReason.EXCLUSIVE_REFUSED
+                        }
+                    }
                 }
                 else -> {}
             }
@@ -161,6 +176,78 @@ class ProcessingAudioSink(
         if (note.isNotEmpty()) AppLog.w("Uscita", note)
         AppLog.i("Uscita", "Percorso: ${r.label}, ${fmt.sampleRate} Hz, ${encLabel(fmt.pcmEncoding)}, bit-perfect=$bitPerfect")
         publishPath(inputFormat, fmt, raw, bitPerfect, note)
+        publishLw(inputFormat, fmt, raw, failure, probeSeen)
+    }
+
+    // ------------------------------------------------------------------ modello del percorso di LastWave
+
+    private fun encOf(e: Int) = when (e) {
+        C.ENCODING_PCM_16BIT -> InternalDirectStream.ENC_I16
+        C.ENCODING_PCM_24BIT -> InternalDirectStream.ENC_I24
+        C.ENCODING_PCM_32BIT -> InternalDirectStream.ENC_I32
+        else -> InternalDirectStream.ENC_FLOAT
+    }
+
+    private fun lwRoute(): com.marco.mlplayer.audio.direct.InternalRoute = when (monitor.kind) {
+        OutKind.Speaker -> com.marco.mlplayer.audio.direct.InternalRoute.SPEAKER
+        OutKind.Wired -> com.marco.mlplayer.audio.direct.InternalRoute.WIRED
+        OutKind.Bluetooth -> com.marco.mlplayer.audio.direct.InternalRoute.BLUETOOTH
+        OutKind.Usb -> com.marco.mlplayer.audio.direct.InternalRoute.USB
+        else -> com.marco.mlplayer.audio.direct.InternalRoute.OTHER
+    }
+
+    private fun publishLw(input: Format, out: Format, raw: Boolean, failure: com.marco.mlplayer.audio.direct.InternalDirectReason?, probe: InternalDirectStream.Probe?) {
+        try {
+            val srcBits = if (raw) bitsOf(input.pcmEncoding).let { if (input.pcmEncoding == C.ENCODING_PCM_FLOAT) 24 else it } else 16
+            val srcEnc = if (raw) encOf(input.pcmEncoding) else InternalDirectStream.ENC_I16
+            val routeName = monitor.name.ifBlank { monitor.kind.label }
+            val session = when (route) {
+                Route.DirectTrack -> com.marco.mlplayer.audio.direct.InternalDirectSession(
+                    route = lwRoute(), routeName = routeName,
+                    sourceRateHz = input.sampleRate, sourceEncoding = srcEnc, sourceBits = srcBits,
+                    deviceRateHz = out.sampleRate, deviceEncoding = InternalDirectStream.ENC_I24, deviceChannels = out.channelCount,
+                    resampled = out.sampleRate != input.sampleRate,
+                    formatConverted = srcEnc != InternalDirectStream.ENC_I24,
+                    formatLossless = srcBits <= 24,
+                    mmap = false, deviceBufferFrames = out.sampleRate / 2,
+                    backend = com.marco.mlplayer.audio.direct.InternalBackend.DIRECT_TRACK, directVerified = true,
+                )
+                Route.AAudio -> aaudio?.info()?.let { i ->
+                    com.marco.mlplayer.audio.direct.InternalDirectSession(
+                        route = lwRoute(), routeName = routeName,
+                        sourceRateHz = input.sampleRate, sourceEncoding = srcEnc, sourceBits = srcBits,
+                        deviceRateHz = i.sampleRateHz, deviceEncoding = i.encoding, deviceChannels = i.channelCount,
+                        resampled = i.sampleRateHz != input.sampleRate,
+                        formatConverted = srcEnc != i.encoding,
+                        formatLossless = InternalDirectStream.bitsOf(i.encoding) >= srcBits || i.encoding == InternalDirectStream.ENC_FLOAT,
+                        mmap = i.mmap, deviceBufferFrames = i.deviceBufferFrames,
+                        backend = com.marco.mlplayer.audio.direct.InternalBackend.MMAP, directVerified = true,
+                    )
+                }
+                else -> null
+            }
+            val wanted = outputs.directWanted
+            val reason = when {
+                session != null -> com.marco.mlplayer.audio.direct.InternalDirectReason.ACTIVE
+                !wanted -> null
+                outputs.usbAudioDevice() != null -> com.marco.mlplayer.audio.direct.InternalDirectReason.USB
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.P -> com.marco.mlplayer.audio.direct.InternalDirectReason.ANDROID_TOO_OLD
+                else -> failure
+            }
+            val availability = com.marco.mlplayer.audio.direct.InternalDirectAvailability(
+                route = lwRoute(), routeName = routeName,
+                reason = reason ?: if (InternalDirectStream.nativeLoaded) com.marco.mlplayer.audio.direct.InternalDirectReason.AVAILABLE
+                    else com.marco.mlplayer.audio.direct.InternalDirectReason.NATIVE_MISSING,
+                probe = probe,
+            )
+            outputs.lw = com.marco.mlplayer.audio.direct.LwState(
+                valid = raw, sourceRateHz = input.sampleRate, sourceBits = srcBits, appRateHz = out.sampleRate,
+                dspOn = active && processor.info.active,
+                session = session, failure = if (session == null && wanted) reason else null, availability = availability,
+            )
+        } catch (e: Exception) {
+            AppLog.w("Uscita", "Modello del percorso non aggiornato", e)
+        }
     }
 
     private fun configureProcessor(inputFormat: Format): Format? = try {

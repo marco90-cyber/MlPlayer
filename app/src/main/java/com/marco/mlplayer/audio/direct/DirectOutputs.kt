@@ -39,6 +39,18 @@ data class SignalPath(
     val report: PathReport = PathReport(),
 )
 
+/** Stato dell'uscita per il modello del percorso di LastWave ([evaluateSignalPath]). */
+data class LwState(
+    val valid: Boolean = false,
+    val sourceRateHz: Int = 0,
+    val sourceBits: Int = 0,
+    val appRateHz: Int = 0,
+    val dspOn: Boolean = false,
+    val session: InternalDirectSession? = null,
+    val failure: InternalDirectReason? = null,
+    val availability: InternalDirectAvailability? = null,
+)
+
 /** Dati per il pannello "Percorso del segnale" in stile LastWave (stessi nodi e righe). */
 data class PathReport(
     val valid: Boolean = false,
@@ -89,6 +101,9 @@ class DirectOutputs(context: Context, private val settings: Settings) {
 
     /** Ultimo percorso del segnale (osservabile da Compose). */
     var path by mutableStateOf(SignalPath())
+
+    /** Stato per il modello del percorso di LastWave. */
+    var lw by mutableStateOf(LwState())
 
     /** Incrementato da "Controlla percorso" per forzare una nuova lettura. */
     var checkToken by mutableIntStateOf(0)

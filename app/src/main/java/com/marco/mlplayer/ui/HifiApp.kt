@@ -122,7 +122,7 @@ private fun HifiContent(env: AppEnv) {
             TabBar(env)
         }
 
-        if (env.showSignalPath) SignalPathDialog(env) { env.showSignalPath = false }
+        if (env.showSignalPath) SignalPathHost(env) { env.showSignalPath = false }
 
         AnimatedVisibility(
             visible = env.overlay == Overlay.Log,
