@@ -49,6 +49,12 @@ class EqAudioProcessor(private val analyzer: Analyzer) : BaseAudioProcessor() {
 
     /** Frequenza di uscita se diversa da quella d'ingresso (ricampionamento), 0 = nessuno. */
     @Volatile var targetRate: Int = 0
+
+    /** Bit-perfect: il DSP resta in bypass qualunque sia l'impostazione (l'analizzatore continua a vedere l'audio). */
+    @Volatile var forceBypass: Boolean = false
+        set(value) {
+            if (field != value) { field = value; configVersion++ }
+        }
     private var outRate = 0
 
     @Volatile var info: DspInfo = DspInfo()
@@ -142,11 +148,11 @@ class EqAudioProcessor(private val analyzer: Analyzer) : BaseAudioProcessor() {
         val rgInfo = replayGain ?: scannedGain
         val rgDb = ReplayGain.gainDb(rgInfo, s.replayGain)
         dsp.setParams(s.toNative(rgDb, listenVolume))
-        bypass = !s.master
+        bypass = !s.master || forceBypass
         appliedVersion = v
         val m = dsp.meters(false)  // [limiter, headroom, ingresso, stadi]
         info = DspInfo(
-            active = s.master, sampleRate = sampleRate, channels = channels,
+            active = s.master && !forceBypass, sampleRate = sampleRate, channels = channels,
             inEncoding = encName(inEnc), outEncoding = encName(outEnc),
             bypass = bypass, limiter = s.master && s.limiter,
             latencyMs = if (sampleRate > 0) dsp.latencyFrames() * 1000f / sampleRate else 0f,
@@ -240,9 +246,11 @@ class EqAudioProcessor(private val analyzer: Analyzer) : BaseAudioProcessor() {
             if (s.tone && (s.bassDb > 0f || s.trebleDb > 0f)) add("Toni")
             if (s.analogBass) add("Analog Bass")
             if (s.air) add("Hi-Res Air")
+            if (s.clarity) add("Clarity")
             if (s.stereo) add(if (s.surroundMode > 0) "Surround+" else "Stereo")
             if (s.dbfbMode > 0) add("DBFB")
             if (s.loudness) add("Loudness")
+            if (s.softSat) add("Saturazione morbida")
             if (s.limiter) add("Limiter")
         }
     }

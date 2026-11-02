@@ -556,7 +556,7 @@ class Library(private val context: Context) {
 
         /** Formati principali: MP3, FLAC, WAV, OGG/Opus, AAC/M4A, MKA, AMR. */
         val AUDIO_EXT = setOf(
-            "mp3", "flac", "wav", "ogg", "oga", "opus", "m4a", "m4b", "aac", "mka", "amr", "3gp"
+            "mp3", "flac", "wav", "ogg", "oga", "opus", "m4a", "m4b", "aac", "mka", "amr", "3gp", "webm", "caf"
         )
         private val IMAGE_EXT = setOf("jpg", "jpeg", "png", "webp")
     }

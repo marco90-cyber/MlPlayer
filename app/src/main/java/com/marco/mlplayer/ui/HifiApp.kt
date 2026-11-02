@@ -100,7 +100,7 @@ private fun HifiContent(env: AppEnv) {
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 Crossfade(targetState = env.tab, animationSpec = tween(180), label = "tab") { t ->
                     when (t) {
-                        Tab.NowPlaying -> NowPlayingPanel(env)
+                        Tab.NowPlaying -> if (env.settings.playerLayout == 1) CoverPlayerPanel(env) else NowPlayingPanel(env)
                         Tab.Library -> MenuPanel(env, env.libraryNav)
                         Tab.Settings -> MenuPanel(env, env.settingsNav)
                         Tab.Eq -> FramedPanel("EQUALIZZATORE") { EqualizerScreen(env) }

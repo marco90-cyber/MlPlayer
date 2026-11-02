@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "MLPlayer"
 include(":app")
+include(":usbaudio")

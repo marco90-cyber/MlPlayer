@@ -115,6 +115,7 @@ fun OutputScreen(env: AppEnv) {
                 .padding(horizontal = 10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            Section("Percorso") { SignalPathView(env) }
             Section("Uscita attiva") {
                 val om = engine.outputMonitor
                 KV(

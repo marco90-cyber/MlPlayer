@@ -27,6 +27,14 @@ android {
             path = file("src/main/cpp/CMakeLists.txt")
         }
     }
+    defaultConfig {
+        externalNativeBuild {
+            cmake {
+                // Oboe come libreria condivisa (prefab)
+                arguments += listOf("-DANDROID_STL=c++_shared")
+            }
+        }
+    }
 
     // Firma privata: il keystore arriva dai segreti di GitHub (KEYSTORE_BASE64 decodificato dal workflow).
     // Nessuna firma di debug per la release: senza segreti il workflow si ferma.
@@ -61,6 +69,7 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+        prefab = true
     }
 
     lint {
@@ -90,6 +99,12 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:$media3")
     implementation("androidx.media3:media3-session:$media3")
     implementation("androidx.media3:media3-common:$media3")
+    // decoder FFmpeg (ALAC, APE, WavPack, DSD e altri formati che Android non legge)
+    implementation("org.jellyfin.media3:media3-ffmpeg-decoder:1.5.1+1")
+    // Oboe / AAudio per l'uscita esclusiva MMAP
+    implementation("com.google.oboe:oboe:1.10.0")
+    // driver USB per l'uscita esclusiva al DAC (decent-player, MIT)
+    implementation(project(":usbaudio"))
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")

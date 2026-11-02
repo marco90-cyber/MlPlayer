@@ -15,3 +15,19 @@ Usata per il ricampionamento dell'uscita adattiva; sorgenti in app/src/main/cpp/
 
 Equalizzatore (da MLEqualizer): idee ispirate a Poweramp, JadOO DSP, Mornye e AutoEQ; nessun codice copiato.
 Filtri: RBJ Audio EQ Cookbook e M. Vicanek, "Matched Second Order Digital Filters". Loudness: ITU-R BS.1770 / EBU R128.
+
+LastWave (https://github.com/Clash-Projects/LastWave-native) - GPL-3.0
+  Copiati e adattati (pacchetto com.marco.mlplayer.audio.direct e app/src/main/cpp):
+  ExclusiveUsbOutput, UacFeatureVolume, ExclusivePcmGain, UsbBitPerfectOutput, DirectTrackStream,
+  InternalDirectStream, DirectOutputStream.cpp/.h, DirectOutputBridge.cpp, LockFreeRingBuffer.h.
+  Idee riscritte: percorso del segnale verificato, layout "Copertina" del lettore, catena Clarity,
+  filtro anti-DC e saturazione morbida del DSP (in MLEqualizer, doppia precisione).
+
+decent-usb-audio-driver (cartella usbaudio/, preso da LastWave) - MIT License,
+  Copyright (c) 2026 Marcelo Silva (testo in usbaudio/LICENSE). Driver USB Audio Class via usbdevfs
+  con trasferimenti isocroni, usato per l'uscita USB esclusiva.
+
+Oboe (https://github.com/google/oboe) - Apache License 2.0: uscita AAudio esclusiva (MMAP).
+
+Jellyfin media3-ffmpeg-decoder (https://github.com/jellyfin/jellyfin-androidx-media) - GPL-3.0,
+  con FFmpeg (LGPL/GPL): decodifica dei formati che Android non legge (ALAC, AC-3, E-AC-3, DTS, TrueHD...).

@@ -52,6 +52,9 @@ class MenuScreen(
 /** Impostazioni › Aspetto: scelta della finitura con anteprima. */
 object AppearanceScreen : Screen()
 
+/** Percorso del segnale e opzioni d'uscita (USB esclusiva, diretta, bit-perfect). */
+object SignalPathScreen : Screen()
+
 class Entry(val screen: Screen) {
     val listState = LazyListState()
 }

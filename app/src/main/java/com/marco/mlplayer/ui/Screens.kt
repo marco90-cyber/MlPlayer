@@ -276,6 +276,11 @@ fun AppEnv.playbackScreen(): MenuScreen = MenuScreen("Riproduzione") {
         ) { engine.setAdaptiveOutput(!settings.adaptiveOutput) },
         MenuItem("Equalizzatore", chevron = true) { tab = Tab.Eq },
         MenuItem("Uscita audio", chevron = true) { tab = Tab.Output },
+        MenuItem(
+            "Percorso del segnale", chevron = true,
+            sub = "USB esclusiva, uscita diretta, bit-perfect",
+            value = engine.outputs.path.route.name.let { if (it == "Android") "Android" else "Diretta" },
+        ) { settingsNav.push(SignalPathScreen) },
     )
 }
 
@@ -336,7 +341,8 @@ fun AppEnv.aboutScreen(): MenuScreen = MenuScreen("Informazioni") {
         },
         info("Dispositivo", "${Build.MANUFACTURER} ${Build.MODEL}"),
         info("Android", "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})"),
-        info("Licenza", "Uso personale"),
-        info("Componenti", "AndroidX Media3, Jetpack Compose (Apache 2.0)"),
+        info("Licenza", "GPL-3.0 o successiva"),
+        info("Componenti", "AndroidX Media3, Jetpack Compose, Oboe (Apache 2.0); libsoxr (LGPL); FFmpeg decoder Jellyfin (GPL-3.0)"),
+        info("Da LastWave", "Uscite USB esclusiva, diretta e AAudio, bit-perfect, percorso del segnale, layout Copertina (GPL-3.0); driver USB decent-player (MIT)"),
     )
 }

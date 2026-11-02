@@ -61,6 +61,7 @@ fun MenuPanel(env: AppEnv, nav: Nav) {
     val title = when (val s = entry.screen) {
         is MenuScreen -> s.title
         AppearanceScreen -> "Aspetto"
+        SignalPathScreen -> "Percorso del segnale"
     }
     val f = Hifi.finish
     Column(
@@ -101,6 +102,9 @@ fun MenuPanel(env: AppEnv, nav: Nav) {
                 when (val s = e.screen) {
                     is MenuScreen -> MenuList(env, e, s)
                     AppearanceScreen -> AppearanceView(env)
+                    SignalPathScreen -> Column(
+                        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(14.dp)
+                    ) { SignalPathView(env) }
                 }
             }
         }
@@ -193,6 +197,30 @@ private fun AppearanceView(env: AppEnv) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        Vfd("LAYOUT DEL LETTORE", 12.sp)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            for ((i, name) in listOf("Hi-Fi", "Copertina").withIndex()) {
+                val sel = s.playerLayout == i
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .border(if (sel) 2.dp else 1.dp, if (sel) f.vfd else f.vfdDim, RoundedCornerShape(8.dp))
+                        .clickable(role = Role.RadioButton) { env.feedback.tapScreen(); s.playerLayout = i },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(8.dp)) {
+                        Text(name, color = f.vfd, fontSize = 15.sp, fontFamily = Hifi.CondensedBold)
+                        Text(
+                            if (i == 0) "VU, display e manopole" else "Copertina grande (stile LastWave)",
+                            color = f.vfd.copy(alpha = 0.7f), fontSize = 11.sp, fontFamily = Hifi.Condensed
+                        )
+                    }
+                }
+            }
+        }
+        VSpace(4.dp)
         Vfd("FINITURA", 12.sp)
         val rows = Finishes.all.chunked(3)
         for (row in rows) {

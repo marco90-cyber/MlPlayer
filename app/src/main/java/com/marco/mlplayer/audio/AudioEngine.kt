@@ -41,6 +41,9 @@ class AudioEngine(
 
     val outputMonitor = OutputMonitor(app)
 
+    /** Uscite dirette (USB esclusiva, AudioTrack DIRECT, AAudio) e percorso del segnale. */
+    val outputs = com.marco.mlplayer.audio.direct.DirectOutputs(app, settings)
+
     val player: ExoPlayer
 
     var currentTrack by mutableStateOf<Track?>(null)
@@ -93,9 +96,11 @@ class AudioEngine(
                     .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
                     .build()
                 // Il DSP gira prima del sink: il sink di Media3 salta i processori per il PCM 24/32 bit.
-                return ProcessingAudioSink(inner, eqProcessor, outputMonitor) { settings.adaptiveOutput }
+                return ProcessingAudioSink(inner, eqProcessor, outputMonitor, outputs) { settings.adaptiveOutput }
             }
         }
+        // FFmpeg (Jellyfin) solo per i formati che Android non sa decodificare (ALAC, APE, WavPack, DSD...)
+        factory.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
         player = ExoPlayer.Builder(app, factory)
             .setAudioAttributes(
                 AudioAttributes.Builder()

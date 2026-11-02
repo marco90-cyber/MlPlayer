@@ -6,8 +6,10 @@
 //   decodifica -> guadagno d'ingresso (preamp + ReplayGain + headroom, con rampa)
 //   -> pila di filtri lineari con rampa dei coefficienti (EQ grafico o parametrico, toni,
 //      Analog Bass, Air, Surround, Loudness)
-//   -> Analog Bass Drive -> DBFB -> stereo (crossfeed, larghezza, bilanciamento, mono)
-//   -> limiter true-peak -> ricampionatore -> codifica (dither TPDF).
+//   -> anti-DC -> guadagno d'ingresso -> pila di filtri lineari (EQ, toni, moduli, Clarity)
+//   -> Analog Bass Drive -> DBFB -> Clarity (exciter e bassi mono) -> stereo (crossfeed,
+//   larghezza, bilanciamento, mono) -> saturazione morbida -> limiter true-peak
+//   -> ricampionatore -> codifica (dither TPDF).
 // Con "master" spento l'audio passa intatto (PCM16 bit-exact).
 #pragma once
 
@@ -41,7 +43,10 @@ enum Slot : int {
     kSlotAir1 = 35, kSlotAir2 = 36,
     kSlotSmileLo = 37, kSlotSmileHi = 38, kSlotPresence = 39,
     kSlotLoudLo = 40, kSlotLoudHi = 41,
-    kSlots = 42
+    // Clarity (da LastWave): sub, corpo, anti-fango, risonanze, presenza, aria
+    kSlotClarSub = 42, kSlotClarBass = 43, kSlotClarLowMid = 44, kSlotClarBox = 45,
+    kSlotClarPresence = 46, kSlotClarAir = 47,
+    kSlots = 48
 };
 
 class Engine {
@@ -55,6 +60,7 @@ public:
         rampLeft_ = 0;
         drive_.prepare(sr_, ch_); punch_.prepare(sr_, ch_);
         stereo_.prepare(sr_);
+        dc_.prepare(sr_, ch_); clarity_.prepare(sr_, ch_);
         limiter_.prepare(sr_, ch_, kLookMs);
         rsOn_ = false;
         configured_ = true;
@@ -94,6 +100,7 @@ public:
         rampLeft_ = 0;
         inCur_ = inTarget_;
         drive_.reset(); punch_.reset();
+        dc_.reset(); clarity_.reset();
         stereo_.reset(); limiter_.reset();
         if (rsOn_) rs_.reset();
     }
@@ -196,6 +203,25 @@ private:
             c[kSlotLoudLo] = design::shelfQ(fs, 100.0, p.loudnessAmount * std::min(12.0, att * 0.33), 0.7, true);
             if (inRange(10000)) c[kSlotLoudHi] = design::shelfQ(fs, 10000.0, p.loudnessAmount * std::min(6.0, att * 0.15), 0.7, false);
         }
+        // Clarity: curva "da studio" con le correzioni del preset (altoparlante, cuffie, DAC)
+        double exciter = 0.0;
+        if (p.clarityOn) {
+            static const double kTrims[4][8] = {
+                {0, 0, 0, 0, 0, 0, 0, 0},
+                {0, -1.5, 0, 0, 0, -0.5, 0, 0},
+                {0, -0.5, 0, 0, -1.0, 0, 0, 0},
+                {0, 0, 0, 0, 0, -1.5, 0, -1.0},
+            };
+            const double* t = kTrims[std::min(3, std::max(0, p.clarityPreset))];
+            const double a = p.clarityAmount;
+            c[kSlotClarSub] = design::highPass(fs, 24.0, 0.7071067811865476);
+            c[kSlotClarBass] = design::peak(fs, 72.0, 0.80, a * (3.2 + t[1]));
+            c[kSlotClarLowMid] = design::peak(fs, 280.0, 0.90, a * (-3.0 + t[2]));
+            c[kSlotClarBox] = design::peak(fs, 750.0, 0.85, a * (-1.4 + t[3]));
+            if (inRange(3400)) c[kSlotClarPresence] = design::peak(fs, 3400.0, 0.85, a * (3.8 + t[4]));
+            if (inRange(10500)) c[kSlotClarAir] = design::shelfQ(fs, 10500.0, a * (4.8 + t[5]), 0.7, false);
+            exciter = 0.18 * dbToLin(t[7]);
+        }
         for (Coef& x : c) if (!stable(x)) x = Coef{};
 
         // ingresso: preamp + ReplayGain - headroom
@@ -212,6 +238,9 @@ private:
 
         // moduli
         drive_.set(p.abassOn, p.abassDrive);
+        dc_.set(p.dcOn);
+        clarity_.set(p.clarityOn, p.clarityAmount, exciter);
+        soft_.set(p.softOn);
         punch_.set(p.dbfbMode);
         if (ch_ == 2) {
             if (p.stereoOn) stereo_.set(p.balance, p.mono ? 0.0 : 1.0 + p.expand, hiWidth, p.crossfeed);
@@ -308,6 +337,12 @@ private:
         if (work_.size() < n) work_.resize(n);
         double* w = work_.data();
         const float* s = scratch_.data();
+        if (dc_.on()) {
+            // anti-DC prima di tutto: lavora in doppia precisione su una copia dell'ingresso
+            for (size_t i = 0; i < n; i++) w[i] = s[i];
+            dc_.process(w, frames);
+            for (size_t i = 0; i < n; i++) scratch_[i] = static_cast<float>(w[i]);
+        }
 
         const int nr = std::min(frames, rampLeft_);
         const bool ends = nr == rampLeft_;
@@ -371,7 +406,9 @@ private:
 
         drive_.process(w, frames);
         punch_.process(w, frames);
+        clarity_.process(w, frames);
         if (ch_ == 2) stereo_.process(w, frames);
+        soft_.process(w, n);
         if (p_.limOn) limiter_.process(w, frames);
 
         bool bad = false;
@@ -457,6 +494,9 @@ private:
     std::vector<double> work_;
     BassDrive drive_;
     BassPunch punch_;
+    DcBlocker dc_;
+    ClarityStage clarity_;
+    SoftKnee soft_;
     StereoStage stereo_;
     Limiter limiter_;
     Resampler rs_;

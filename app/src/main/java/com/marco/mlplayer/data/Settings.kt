@@ -63,6 +63,8 @@ class Settings(context: Context) {
     // Aspetto
     /** Finitura del frontale (vedi Finishes). */
     var finishId by StringPref(sp, "finish", "nero")
+    /** Layout del lettore: 0 = Hi-Fi (VU, display, manopole), 1 = Copertina a tutto schermo */
+    var playerLayout by IntPref(sp, "player_layout", 0)
     /** Luce degli strumenti: 0 = bassa, 1 = media, 2 = alta */
     var meterLight by IntPref(sp, "meter_light", 2)
     /** Lancette dei VU: 0 = morbide (300 ms), 1 = rapide (120 ms) */
@@ -111,6 +113,12 @@ class Settings(context: Context) {
     var repeatMode by IntPref(sp, "repeat", 0)
     /** Uscita adattiva: bit e kHz scelti in base al DAC o alle casse collegate */
     var adaptiveOutput by BoolPref(sp, "adaptive_output", true)
+    /** Uscita USB esclusiva: il PCM va dritto al DAC con il driver USB, senza mixer di Android. */
+    var usbExclusive by BoolPref(sp, "usb_exclusive", false)
+    /** Uscita diretta sulle uscite del telefono (AudioTrack DIRECT o AAudio esclusiva). */
+    var directOutput by BoolPref(sp, "direct_output", false)
+    /** Bit-perfect: niente DSP, niente ricampionamento, niente volume software (al 100%). */
+    var bitPerfect by BoolPref(sp, "bit_perfect", false)
     var volume by FloatPref(sp, "volume", 1f)
 
     // Analizzatore

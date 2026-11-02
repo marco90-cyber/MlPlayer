@@ -67,6 +67,13 @@ class MainActivity : ComponentActivity(), Actions {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // uscita USB esclusiva: serve il permesso per il DAC collegato
+        val app = application as MLPlayerApp
+        if (app.settings.usbExclusive) runCatching { app.engine.outputs.ensureUsbPermission() }
+    }
+
     override fun onDestroy() {
         val env = (application as MLPlayerApp).env
         if (env.actions === this) env.actions = null

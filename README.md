@@ -13,6 +13,10 @@ Lettore musicale per Android con grafica da **impianto hi-fi Hi-Res**: frontale 
 - Formati: MP3, FLAC, WAV, OGG, Opus, AAC, M4A, MKA, AMR (M4A/ALAC dipende dal telefono)
 - **Equalizzatore** di [MLEqualizer](https://github.com/marco90-cyber/Mleq): grafico a 3, 5, 7, 10, 15 o 31 bande modificabile direttamente nella pagina (curva fedele), preamp, toni come Poweramp (frequenza e Q), Analog Bass, Hi-Res Air, Surround+ e stereo, DBFB, loudness legata al volume, ReplayGain (tag o misura R128), headroom automatico e limiter true-peak; preset AutoEQ/Poweramp e **analizzatore** (picchi, RMS, PPM, goniometro, 1/3 d'ottava) con i colori della finitura
 - Uscita adattiva al DAC (bit e kHz) con ricampionatore soxr
+- **Uscite che saltano il mixer di Android** (da LastWave): **USB esclusiva** con driver diretto al DAC (volume hardware del DAC se c'è), **uscita diretta** (AudioTrack 24 bit alla frequenza del brano su un'uscita DIRECT verificata, oppure **AAudio esclusiva MMAP** con Oboe) e **Bit-perfect** (niente DSP, niente ricampionamento; con il mixer serve Android 14 e un DAC USB compatibile)
+- **Percorso del segnale**: Sorgente → DSP → Volume → Uscita → Dispositivo, con le verifiche reali (clock letto dal DAC, uscita DIRECT, MMAP) e il pulsante "Controlla"
+- **Decoder FFmpeg** (Jellyfin) per i formati che il telefono non decodifica (ALAC, AC-3, E-AC-3, DTS, TrueHD in M4A/MKA/WebM)
+- **Due layout del lettore** (Impostazioni → Aspetto): Hi-Fi oppure **Copertina** a tutto schermo (ispirato a LastWave)
 - **Aggiornamenti** (Impostazioni → Aggiornamenti): controlla l'ultima release su GitHub e scarica l'APK
 - Riproduzione in background con notifica e controlli multimediali
 

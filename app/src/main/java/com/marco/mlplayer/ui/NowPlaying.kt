@@ -7,6 +7,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -91,8 +92,8 @@ fun NowPlayingPanel(env: AppEnv) {
 private fun HeaderPlate(env: AppEnv) {
     val e = env.engine
     val eq = env.settings.dsp
-    val dsp = eq.master
-    val usb = e.outputMonitor.kind == OutKind.Usb
+    val dsp = eq.master && !e.outputs.path.bitPerfect
+    val usb = e.outputMonitor.kind == OutKind.Usb || e.outputs.path.route == com.marco.mlplayer.audio.direct.Route.UsbExclusive
     Row(
         Modifier.fillMaxWidth().plate().padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -370,7 +371,9 @@ private fun InfoSection(env: AppEnv, t: Track?, modifier: Modifier) {
             InfoRow("BRANO", "—")
             InfoRow("SORGENTE", "—")
         }
-        val out = buildList {
+        val path = e.outputs.path
+        val direct = path.route != com.marco.mlplayer.audio.direct.Route.Android
+        val out = if (direct) (path.steps.firstOrNull { it.title == "Uscita" }?.main ?: path.route.label) else buildList {
             if (e.trackEncoding.isNotBlank()) add(e.trackEncoding.removePrefix("PCM "))
             if (e.trackSampleRate > 0) add(khz(e.trackSampleRate))
             if (t != null && t.sampleRate > 0 && e.trackSampleRate > 0) {
@@ -379,10 +382,11 @@ private fun InfoSection(env: AppEnv, t: Track?, modifier: Modifier) {
             if (e.trackOffload) add("offload")
         }.joinToString(" · ").ifBlank { "in attesa" }
         InfoRow("USCITA", out)
-        InfoRow("DISPOSITIVO", if (om.name.isNotBlank() && om.name != om.kind.label) "${om.kind.label} · ${om.name}" else om.kind.label)
+        val devStep = path.steps.firstOrNull { it.title == "Dispositivo" }?.main
+        InfoRow("DISPOSITIVO", if (direct && devStep != null) devStep else if (om.name.isNotBlank() && om.name != om.kind.label) "${om.kind.label} · ${om.name}" else om.kind.label)
         val dsp = buildList {
-            add(if (eq.master) "attivo" else "bypass")
-            if (eq.master) com.marco.mlplayer.audio.EqAudioProcessor.activeModules(eq).takeIf { it.isNotEmpty() }?.let { add(it.joinToString(" · ")) }
+            add(if (path.bitPerfect) "bit-perfect" else if (eq.master) "attivo" else "bypass")
+            if (eq.master && !path.bitPerfect) com.marco.mlplayer.audio.EqAudioProcessor.activeModules(eq).takeIf { it.isNotEmpty() }?.let { add(it.joinToString(" · ")) }
             if (env.settings.adaptiveOutput) add("uscita adattiva")
         }.joinToString(" · ")
         InfoRow("DSP", dsp)
@@ -488,7 +492,7 @@ private fun DisplayPlate(env: AppEnv, modifier: Modifier) {
                 )
                 Vfd(if (dur > 0) "-" + fmtTime(dur - pos) else "--:--", 13.sp, Modifier.padding(bottom = 3.dp), alpha = 0.8f)
             }
-            InfoSection(env, t, Modifier.weight(1f).fillMaxWidth())
+            InfoSection(env, t, Modifier.weight(1f).fillMaxWidth().clickable { env.feedback.tapScreen(); env.tab = Tab.Output })
         }
     }
 }

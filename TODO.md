@@ -10,3 +10,4 @@ Modifiche richieste da Marco, da fare in un secondo momento.
   - https://github.com/BillyDM/awesome-audio-dsp (raccolta di librerie e risorse DSP)
   - https://github.com/mackron/miniaudio
   - **Soprattutto** il motore audio di Mornye: https://github.com/mornyeapp/Mornye/releases/tag/v5.2.6 (non l'equalizzatore: resta quello di MLEqualizer)
+  - LastWave (https://github.com/Clash-Projects/LastWave-native): fatto il primo giro (uscite USB esclusiva, diretta e AAudio, bit-perfect, percorso del segnale, FFmpeg, layout Copertina; Clarity, anti-DC e saturazione morbida in MLEqualizer). Da valutare: AutoMix (dissolvenze intelligenti tra i brani)
