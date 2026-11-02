@@ -492,7 +492,7 @@ private fun DisplayPlate(env: AppEnv, modifier: Modifier) {
                 )
                 Vfd(if (dur > 0) "-" + fmtTime(dur - pos) else "--:--", 13.sp, Modifier.padding(bottom = 3.dp), alpha = 0.8f)
             }
-            InfoSection(env, t, Modifier.weight(1f).fillMaxWidth().clickable { env.feedback.tapScreen(); env.tab = Tab.Output })
+            InfoSection(env, t, Modifier.weight(1f).fillMaxWidth().clickable { env.feedback.tapScreen(); env.showSignalPath = true })
         }
     }
 }

@@ -66,10 +66,17 @@ fun SignalPathView(env: AppEnv, showOptions: Boolean = true) {
         }
         if (checked.isNotEmpty()) Text(checked, color = f.vfd.copy(alpha = 0.8f), fontSize = 12.sp, fontFamily = Hifi.Mono)
 
-        if (path.steps.isEmpty()) {
-            Text("Avvia un brano per vedere il percorso.", color = f.vfd.copy(alpha = 0.7f), fontSize = 13.sp)
-        }
-        path.steps.forEachIndexed { i, s -> StepRow(s, last = i == path.steps.lastIndex) }
+        // il percorso completo si apre nel pannello (come in LastWave)
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .border(1.dp, f.vfd, RoundedCornerShape(10.dp))
+                .clickable(role = Role.Button) { env.feedback.tapScreen(); env.showSignalPath = true }
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            contentAlignment = Alignment.CenterStart
+        ) { Vfd("APRI IL PERCORSO DEL SEGNALE  ›", 13.sp) }
 
         if (showOptions) {
             Box(Modifier.fillMaxWidth().height(1.dp).background(f.vfdDim))

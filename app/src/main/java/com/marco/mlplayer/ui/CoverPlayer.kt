@@ -197,7 +197,7 @@ fun CoverPlayerPanel(env: AppEnv) {
                     Modifier
                         .align(Alignment.CenterHorizontally)
                         .clip(RoundedCornerShape(12.dp))
-                        .clickable(role = Role.Button) { fb.tapScreen(); env.tab = Tab.Output }
+                        .clickable(role = Role.Button) { fb.tapScreen(); env.showSignalPath = true }
                         .padding(horizontal = 10.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {

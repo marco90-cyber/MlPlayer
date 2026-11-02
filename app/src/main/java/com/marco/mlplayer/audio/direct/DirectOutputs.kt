@@ -36,6 +36,42 @@ data class SignalPath(
     val steps: List<PathStep> = emptyList(),
     val verdict: String = "In attesa di un brano",
     val bitPerfectReal: Boolean = false,
+    val report: PathReport = PathReport(),
+)
+
+/** Dati per il pannello "Percorso del segnale" in stile LastWave (stessi nodi e righe). */
+data class PathReport(
+    val valid: Boolean = false,
+    val sourceRateHz: Int = 0,
+    val sourceBits: Int = 0,
+    val dspRateHz: Int = 0,
+    val dspSummary: String = "Float32 / PCM",
+    val dspOn: Boolean = false,
+    val eqLine: String = "Equ Off • Balance (0%)",
+    val toneLine: String = "Tone Off",
+    val crossfadeLine: String = "No fading / Short crossfade",
+    val buffersLine: String = "",
+    val dspLatencyMs: Int = 0,
+    val volumeMode: String = "System Volume",
+    val volumeDetail: String = "0.0 dB (Unity Gain)",
+    val preampDb: Float = 0f,
+    val engineName: String = "Android AudioTrack",
+    val outRateHz: Int = 0,
+    val outBits: Int = 32,
+    val flags: List<String> = emptyList(),
+    val outLatencyMs: Int = 0,
+    val deviceName: String = "Android Default Output",
+    val fidelity: Int = 65,
+    val dspScore: String = "—",
+    /** "BIT-PERFECT", "DIRECT → HAL", "USB EXCLUSIVE" oppure "CONTROLLA PERCORSO". */
+    val pill: String = "CONTROLLA PERCORSO",
+    val pillLevel: Int = 0,
+    val verdictText: String = "",
+    val usbExclusive: Boolean = false,
+    val direct: Boolean = false,
+    val routeName: String = "",
+    val directStatus: String = "",
+    val endpoint: String = "—",
 )
 
 /**
@@ -61,6 +97,12 @@ class DirectOutputs(context: Context, private val settings: Settings) {
         usb.setWanted(settings.usbExclusive)
         usbBitPerfect.setEnabled(settings.bitPerfect)
     }
+
+    /** Impostazioni del DSP attuali (per il percorso del segnale). */
+    val dspSettings get() = settings.dsp
+
+    /** Disturbi (underrun) dell'uscita diretta in uso, se misurabili. */
+    @Volatile var underrunsProvider: (() -> Long)? = null
 
     val usbWanted: Boolean get() = settings.usbExclusive
     val directWanted: Boolean get() = settings.directOutput

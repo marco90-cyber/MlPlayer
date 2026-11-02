@@ -97,6 +97,9 @@ class AppEnv(val app: MLPlayerApp) {
     var tab by mutableStateOf(Tab.NowPlaying)
     var overlay by mutableStateOf(Overlay.None)
 
+    /** Pannello "Percorso del segnale" aperto (come in LastWave, dalla riga della qualità). */
+    var showSignalPath by mutableStateOf(false)
+
     val libraryNav = Nav(MenuScreen("Libreria") { musicItems() })
     val settingsNav = Nav(MenuScreen("Impostazioni") { settingsItems() })
 
