@@ -621,7 +621,7 @@ class ProcessingAudioSink(
             dspRateHz = out.sampleRate,
             dspSummary = if (dspOn) "Float64 • Active DSP" else "Float64/Float32 • No DSP",
             dspOn = dspOn,
-            eqLine = if (dspOn && s.eq) "Equalizer Mode: graphic (${s.bands}-band)" else "Equ Off • Balance (0%)",
+            eqLine = if (dspOn && s.eq) if (s.eqMode == com.marco.mlplayer.audio.DspSettings.EQ_GRAPHIC) "Equalizer Mode: graphic (${s.bands}-band)" else "Equalizer Mode: parametric (${s.peq.count { it.on }} filters)" else "Equ Off • Balance (0%)",
             toneLine = if (toneOn) String.format(Locale.ROOT, "Bass +%.1f dB • Treble +%.1f dB", s.bassDb, s.trebleDb) else "Tone Off",
             crossfadeLine = "No fading / Short crossfade",
             buffersLine = "2x (50 ms, ${(out.sampleRate * 0.05).toInt()} audioframes)",

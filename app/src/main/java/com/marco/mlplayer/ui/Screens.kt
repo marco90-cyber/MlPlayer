@@ -319,7 +319,7 @@ fun AppEnv.audioInfoScreen(): MenuScreen = MenuScreen("Info audio") {
             info("Formato", engine.audioInfo.ifBlank { t.detailLine() }),
             info("Hi-Res", if (engine.hiResNow) "Sì" else "No"),
             info("Uscita", if (settings.adaptiveOutput) "Adattiva" else "Standard"),
-            info("Equalizzatore", if (settings.dsp.master && settings.dsp.eq) "${settings.dsp.bands} bande attivo" else "Spento"),
+            info("Equalizzatore", if (settings.dsp.master && settings.dsp.eq) "${settings.dsp.eqLabel()} attivo" else "Spento"),
             info("File", t.uri),
         )
     }
@@ -352,6 +352,7 @@ fun AppEnv.aboutScreen(): MenuScreen = MenuScreen("Informazioni") {
         info("Android", "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})"),
         info("Licenza", "GPL-3.0 o successiva"),
         info("Componenti", "AndroidX Media3, Jetpack Compose, Oboe (Apache 2.0); libsoxr (LGPL); FFmpeg decoder Jellyfin (GPL-3.0)"),
+        info("AutoEQ", "Profili delle cuffie di AutoEQ, Jaakko Pasanen (MIT)"),
         info("Da LastWave", "Uscite USB esclusiva, diretta e AAudio, bit-perfect, percorso del segnale, layout Copertina (GPL-3.0); driver USB decent-player (MIT)"),
     )
 }

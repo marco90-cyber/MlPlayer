@@ -175,6 +175,17 @@ private:
             for (int i = 0; i < nb; i++)
                 if (inRange(p.geqF[i])) c[kSlotEq + i] = design::peak(fs, p.geqF[i], geqQ_[i], geqApplied_[i]);
         }
+        // parametrico: stessi posti del grafico (i due modi sono alternativi)
+        if (p.peqOn && !p.eqOn) {
+            const int np = std::min(p.peqN, kMaxPeq);
+            for (int i = 0; i < np; i++) {
+                const int t = p.peqT[i];
+                if (t < 0 || !inRange(p.peqF[i])) continue;
+                const bool gainType = t == kPeak || t == kLowShelf || t == kHighShelf;
+                if (gainType && std::fabs(p.peqG[i]) < 1e-4) continue;
+                c[kSlotEq + i] = design::byType(t, fs, p.peqF[i], p.peqG[i], p.peqQ[i]);
+            }
+        }
         // toni
         if (inRange(p.bassFreq)) c[kSlotBass] = design::shelfQ(fs, p.bassFreq, p.bassDb, p.bassQ, true);
         if (inRange(p.trebleFreq)) c[kSlotTreble] = design::shelfQ(fs, p.trebleFreq, p.trebleDb, p.trebleQ, false);
@@ -232,8 +243,12 @@ private:
             const double w = p.stereoOn ? (p.mono ? 0.0 : (1.0 + p.expand) * hiWidth) : hiWidth;
             if (w > 1.0) head += linToDb((1.0 + w) / 2.0);
         }
+        // il preamp di un preset parametrico (AutoEQ) copre già il suo rinforzo: l'headroom
+        // automatico toglie solo quello che resta
+        const double peqPre = (p.peqOn && !p.eqOn) ? p.peqPreDb : 0.0;
+        if (p.autoHeadroom) head = std::max(0.0, head + peqPre);
         headroomDb_ = head;
-        inDb_ = p.preampDb + p.replayGainDb - head;
+        inDb_ = p.preampDb + p.replayGainDb + peqPre - head;
         inTarget_ = dbToLin(inDb_);
 
         // moduli

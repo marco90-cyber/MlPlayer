@@ -114,7 +114,7 @@ fun SignalPathHost(env: AppEnv, onDismiss: () -> Unit) {
         internalDirectFailure = lw.failure,
         bypassRequested = outputs.bitPerfect,
         wireBits = usb.activeWireBits(),
-        parametricEqActive = false,
+        parametricEqActive = env.settings.dsp.let { it.master && it.eq && it.eqMode != com.marco.mlplayer.audio.DspSettings.EQ_GRAPHIC && it.peq.any { b -> b.on } },
     )
     val report = evaluateSignalPath(input)
     val needsPermission = usbDev != null && outputs.usbWanted && !outputs.usbDacReady()
