@@ -33,6 +33,7 @@ Jellyfin media3-ffmpeg-decoder (https://github.com/jellyfin/jellyfin-androidx-me
   con FFmpeg (LGPL/GPL): decodifica dei formati che Android non legge (ALAC, AC-3, E-AC-3, DTS, TrueHD...).
 
 AutoEQ (https://github.com/jaakkopasanen/AutoEq) - MIT License, Copyright (c) 2018-2022 Jaakko Pasanen.
-I profili parametrici delle cuffie sono inclusi in app/src/main/assets/autoeq.tsv.gz (formato compatto).
-Il profilo "OneOdio Pro 30" e' ricostruito da MlPlayer con il codice di AutoEQ dal grafico di
+Testo della licenza in app/src/main/assets/autoeq-LICENSE.txt. I profili parametrici delle cuffie sono
+inclusi in app/src/main/assets/autoeq.tsv.gz (formato compatto).
+Il profilo "OneOdio Pro 30" e' ricostruito con il codice di AutoEQ dal grafico di
 audio-sound@hatena (target Harman over-ear 2018): non e' una misura AutoEQ.

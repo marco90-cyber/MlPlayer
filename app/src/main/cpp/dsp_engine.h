@@ -3,10 +3,9 @@
 // MLEqualizer - motore DSP.
 //
 // Catena (in quest'ordine):
-//   decodifica -> guadagno d'ingresso (preamp + ReplayGain + headroom, con rampa)
-//   -> pila di filtri lineari con rampa dei coefficienti (EQ grafico o parametrico, toni,
-//      Analog Bass, Air, Surround, Loudness)
-//   -> anti-DC -> guadagno d'ingresso -> pila di filtri lineari (EQ, toni, moduli, Clarity)
+//   decodifica -> guadagno d'ingresso (preamp + ReplayGain - headroom, con rampa)
+//   -> pila di filtri lineari con rampa dei coefficienti (EQ grafico o parametrico, toni, Analog Bass, Air,
+//      Surround, Loudness, Clarity) -> anti-DC
 //   -> Analog Bass Drive -> DBFB -> Clarity (exciter e bassi mono) -> stereo (crossfeed,
 //   larghezza, bilanciamento, mono) -> saturazione morbida -> limiter true-peak
 //   -> ricampionatore -> codifica (dither TPDF).
@@ -242,6 +241,8 @@ private:
             for (int i = 0; i < 256; i++) head = std::max(head, responseDb(20.0 * std::pow(1000.0, i / 255.0)));
             const double w = p.stereoOn ? (p.mono ? 0.0 : (1.0 + p.expand) * hiWidth) : hiWidth;
             if (w > 1.0) head += linToDb((1.0 + w) / 2.0);
+            // Clarity allarga il laterale sopra i 130 Hz del 22%
+            if (p.clarityOn && ch_ == 2) head += linToDb((1.0 + 1.0 + 0.22 * p.clarityAmount) / 2.0);
         }
         // il preamp di un preset parametrico (AutoEQ) copre già il suo rinforzo: l'headroom
         // automatico toglie solo quello che resta
@@ -352,12 +353,6 @@ private:
         if (work_.size() < n) work_.resize(n);
         double* w = work_.data();
         const float* s = scratch_.data();
-        if (dc_.on()) {
-            // anti-DC prima di tutto: lavora in doppia precisione su una copia dell'ingresso
-            for (size_t i = 0; i < n; i++) w[i] = s[i];
-            dc_.process(w, frames);
-            for (size_t i = 0; i < n; i++) scratch_[i] = static_cast<float>(w[i]);
-        }
 
         const int nr = std::min(frames, rampLeft_);
         const bool ends = nr == rampLeft_;
@@ -419,6 +414,9 @@ private:
         }
         rampLeft_ -= nr;
 
+        // anti-DC dopo la parte lineare (stesso risultato che all'ingresso) e prima dei moduli non
+        // lineari, tutto in doppia precisione
+        dc_.process(w, frames);
         drive_.process(w, frames);
         punch_.process(w, frames);
         clarity_.process(w, frames);
