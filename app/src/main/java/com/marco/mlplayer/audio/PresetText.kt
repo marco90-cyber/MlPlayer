@@ -154,7 +154,7 @@ object PresetText {
                     }
                     if (list.isEmpty()) continue
                     val notes = ArrayList<String>()
-                    if (approxLpHp > 0) notes.add("$approxLpHp passa basso/alto di Poweramp (con guadagno) resi come scaffali")
+                    if (approxLpHp > 0) notes.add("$approxLpHp passa basso/alto con guadagno resi come scaffali")
                     if (approxBp > 0) notes.add("$approxBp passa banda reso come campana")
                     if (oneChannel > 0) notes.add("$oneChannel filtri di un solo canale applicati a entrambi")
                     if (unknown > 0) notes.add("$unknown filtri di tipo sconosciuto saltati")

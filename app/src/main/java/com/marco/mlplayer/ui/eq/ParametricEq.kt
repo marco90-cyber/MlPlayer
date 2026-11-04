@@ -1,11 +1,23 @@
 package com.marco.mlplayer.ui.eq
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -44,6 +56,73 @@ import kotlinx.coroutines.withContext
 import java.util.Locale
 import kotlin.math.ln
 import kotlin.math.exp
+import kotlin.math.hypot
+import kotlin.math.log10
+import kotlin.math.pow
+
+// ------------------------------------------------------------------ anteprime dei filtri
+
+/** Forma tipica di ogni tipo di filtro (dB) a [x] 0..1 = 20 Hz..20 kHz. */
+private fun shapeDb(type: Int, x: Float): Float {
+    val f = 20f * 1000f.pow(x)
+    val fc = 632f
+    val r = (f / fc).toDouble()
+    fun db(m: Double) = (20 * log10(m.coerceAtLeast(1e-4))).toFloat().coerceAtLeast(-30f)
+    return when (type) {
+        PeqBand.LS -> DspSettings.filterDb("LS", fc, 9f, 0.7f, f)
+        PeqBand.HS -> DspSettings.filterDb("HS", fc, 9f, 0.7f, f)
+        PeqBand.LP -> db(1.0 / hypot(1 - r * r, r / 0.9))
+        PeqBand.HP -> db(r * r / hypot(1 - r * r, r / 0.9))
+        PeqBand.BP -> db((r / 1.2) / hypot(1 - r * r, r / 1.2))
+        PeqBand.NOTCH -> db(kotlin.math.abs(1 - r * r) / hypot(1 - r * r, r / 1.5))
+        else -> DspSettings.filterDb("PK", fc, 9f, 1.6f, f)
+    }
+}
+
+/** Piccola anteprima della curva di un tipo di filtro. */
+@Composable
+internal fun FilterIcon(type: Int, color: Color, modifier: Modifier = Modifier.size(width = 34.dp, height = 22.dp)) {
+    val pts = remember(type) { FloatArray(48) { i -> shapeDb(type, i / 47f) } }
+    Canvas(modifier) {
+        val lo = pts.min(); val hi = pts.max()
+        val span = (hi - lo).coerceAtLeast(1f)
+        val pad = size.height * 0.12f
+        val path = Path()
+        for (i in pts.indices) {
+            val x = size.width * i / (pts.size - 1)
+            val y = pad + (size.height - 2 * pad) * (1f - (pts[i] - lo) / span)
+            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        }
+        drawPath(path, color, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+/** Scelta del tipo di filtro: tendina con anteprima e nome. */
+@Composable
+private fun FilterTypePicker(type: Int, onSelect: (Int) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Ml.chip).clickable { open = true }
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            FilterIcon(type, Ml.primary)
+            Text(PeqBand.label(type), color = Ml.text, fontSize = 15.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f).padding(start = 12.dp))
+            Text("▾", color = Ml.textDim, fontSize = 14.sp)
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, modifier = Modifier.background(Ml.dialog)) {
+            for (t in PeqBand.TYPES) {
+                DropdownMenuItem(
+                    leadingIcon = { FilterIcon(t, if (t == type) Ml.primary else Ml.text) },
+                    text = { Text(PeqBand.label(t), color = Ml.text, fontSize = 15.sp, fontWeight = if (t == type) FontWeight.SemiBold else FontWeight.Normal) },
+                    trailingIcon = { if (t == type) Text("✓", color = Ml.primary, fontSize = 15.sp) },
+                    onClick = { open = false; onSelect(t) },
+                )
+            }
+        }
+    }
+}
 
 // ------------------------------------------------------------------ parametrico
 
@@ -70,7 +149,7 @@ internal fun ParametricContent(
         update { it.copy(peqPreamp = (Math.round(v * 10f) / 10f)) }
     }
     if (s.peq.isEmpty()) {
-        Text("Nessun filtro. Aggiungine uno o importa un file AutoEQ / Poweramp.", color = Ml.textFaint, fontSize = 12.sp, modifier = Modifier.padding(vertical = 6.dp))
+        Text("Nessun filtro. Aggiungine uno o importa un file AutoEQ o JSON.", color = Ml.textFaint, fontSize = 12.sp, modifier = Modifier.padding(vertical = 6.dp))
     }
     s.peq.forEachIndexed { i, b ->
         PeqRow(i, b, onToggle = { on ->
@@ -88,11 +167,11 @@ internal fun ParametricContent(
         }
         Pill("Importa", selected = false, onClick = onImport)
         Pill("Esporta", selected = false, onClick = onExport)
-        Pill("Poweramp", selected = false, onClick = onExportPoweramp)
+        Pill("JSON", selected = false, onClick = onExportPoweramp)
         Pill("Salva cuffia", selected = false) { saveDialog = true }
         Pill("Azzera", selected = false) { update { it.copy(peq = emptyList(), peqPreamp = 0f, autoEqName = "") } }
     }
-    Text("Tocca un filtro per modificarlo. \"Poweramp\" esporta il JSON per l'EQ parametrico di Poweramp.", color = Ml.textFaint, fontSize = 11.sp)
+    Text("Tocca un filtro per modificarlo. \"JSON\" esporta il parametrico in formato JSON.", color = Ml.textFaint, fontSize = 11.sp)
 
     if (edit in s.peq.indices) {
         PeqDialog(env, s.peq[edit],
@@ -119,6 +198,8 @@ private fun PeqRow(i: Int, b: PeqBand, onToggle: (Boolean) -> Unit, onClick: () 
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text("${i + 1}", color = Ml.textDim, fontSize = 13.sp, modifier = Modifier.width(22.dp))
+        FilterIcon(b.type, if (b.on) Ml.primary else Ml.textFaint)
+        Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(PeqBand.label(b.type), color = if (b.on) Ml.text else Ml.textFaint, fontSize = 14.sp, fontWeight = FontWeight.Medium)
             val g = if (b.hasGain) " · ${fmtDb(b.gain)}" else ""
@@ -136,9 +217,7 @@ private fun PeqDialog(env: AppEnv, b: PeqBand, onChange: (PeqBand) -> Unit, onDe
         title = { Text("Filtro") },
         text = {
             Column {
-                Choices(PeqBand.TYPES.map { PeqBand.label(it) }, PeqBand.TYPES.indexOf(b.type)) { k ->
-                    env.feedback.tapScreen(); onChange(b.copy(type = PeqBand.TYPES[k]))
-                }
+                FilterTypePicker(b.type) { t -> env.feedback.tapScreen(); onChange(b.copy(type = t)) }
                 LabeledSlider("Frequenza", logPos(b.freq, 20f, 20000f), 0f..1f, fmtHz(b.freq)) { p ->
                     val f = logVal(p, 20f, 20000f)
                     val r = if (f < 100f) Math.round(f).toFloat() else if (f < 1000f) Math.round(f / 5f) * 5f else Math.round(f / 50f) * 50f
