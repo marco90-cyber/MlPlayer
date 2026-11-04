@@ -119,7 +119,8 @@ fun EqPanel(env: AppEnv, appName: String, header: @Composable () -> Unit = {}) {
         if (list.isNotEmpty()) {
             val p = list.first()
             settings.updateDsp { it.copy(eq = true, master = true, eqMode = DspSettings.EQ_PARAMETRIC, peq = p.bands, peqPreamp = p.preampDb, autoEqName = "") }
-            message = "Preset \"${p.name}\" applicato al Parametrico: ${p.bands.size} filtri" + (if (list.size > 1) " (il file ne conteneva ${list.size}, applicato il primo)." else ".")
+            message = "Preset \"${p.name}\" applicato al Parametrico: ${p.bands.size} filtri" + (if (list.size > 1) " (il file ne conteneva ${list.size}, applicato il primo)." else ".") +
+                (if (p.notes.isNotEmpty()) "\n\nNota: " + p.notes.joinToString("; ") + "." else "")
         } else {
             val g = PresetText.parseMulti(text, name)
             if (g.isEmpty()) message = "Il file non contiene filtri riconoscibili (AutoEQ, Equalizer APO o Poweramp)."
@@ -136,7 +137,10 @@ fun EqPanel(env: AppEnv, appName: String, header: @Composable () -> Unit = {}) {
     val exportPoweramp = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) {
             val n = settings.dsp.autoEqName.ifBlank { appName }
-            message = if (writeText(uri, PresetText.exportPoweramp(n, settings.dsp))) "Esportato per Poweramp (parametrico, JSON)." else "Esportazione non riuscita."
+            val skipped = PresetText.powerampSkipped(settings.dsp)
+            message = if (writeText(uri, PresetText.exportPoweramp(n, settings.dsp)))
+                "Esportato per Poweramp (parametrico, JSON)." + (if (skipped > 0) " $skipped filtri passa-alto/passa-basso/notch non esportati: in Poweramp quei tipi funzionano in un altro modo." else "")
+            else "Esportazione non riuscita."
         }
     }
     Column(Modifier.fillMaxSize().background(Ml.background)) {

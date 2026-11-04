@@ -47,8 +47,9 @@ object PresetText {
                     val bands = o.optJSONArray("bands") ?: continue
                     for (k in 0 until bands.length()) {
                         val b = bands.getJSONObject(k)
-                        // Poweramp: 0/1 = manopole Bassi/Alti, 2 = campana, 4/5 = shelf bassi/alti
-                        val ty = when (b.optInt("type", 2)) { 0, 4 -> "LS"; 1, 5 -> "HS"; 2 -> "PK"; else -> continue }
+                        // Poweramp (ordine del menu): 0 passa basso, 1 passa alto, 2 passa banda, 3 campanatura,
+                        // 4 scaffale basso, 5 scaffale alto; i primi due della lista sono le manopole Bassi/Alti
+                        val ty = when (b.optInt("type", 3)) { 0, 4 -> "LS"; 1, 5 -> "HS"; 2, 3 -> "PK"; else -> continue }
                         if (b.optDouble("gain", 0.0) == 0.0) continue
                         val q = b.optDouble("q", 0.0).let { if (it <= 0.0) 1.0 else it }
                         sb.append("Filter ${k + 1}: ON $ty Fc ${b.optDouble("frequency")} Hz Gain ${b.optDouble("gain")} dB Q $q\n")
@@ -102,7 +103,7 @@ object PresetText {
     }
 
     /** Preset parametrico: nome, preamp e filtri così come sono. */
-    class Parametric(val name: String, val preampDb: Float, val bands: List<PeqBand>)
+    class Parametric(val name: String, val preampDb: Float, val bands: List<PeqBand>, val notes: List<String> = emptyList())
 
     private fun peqType(code: String): Int? = when (code.uppercase(Locale.ROOT)) {
         "PK", "PEQ", "PEAK" -> PeqBand.PK
@@ -129,17 +130,37 @@ object PresetText {
                     val o = arr.getJSONObject(i)
                     val bands = o.optJSONArray("bands") ?: continue
                     val list = ArrayList<PeqBand>()
+                    var approxLpHp = 0; var approxBp = 0; var unknown = 0; var oneChannel = 0
                     for (k in 0 until bands.length()) {
                         val b = bands.getJSONObject(k)
                         val g = b.optDouble("gain", 0.0).toFloat()
-                        val ty = when (b.optInt("type", 2)) { 0, 4 -> PeqBand.LS; 1, 5 -> PeqBand.HS; 2 -> PeqBand.PK; else -> continue }
-                        if (g == 0f) continue
+                        if (g == 0f) continue  // in Poweramp tutti i filtri hanno un guadagno: 0 dB = nessun effetto
+                        // Poweramp (ordine del menu): 0 passa basso, 1 passa alto, 2 passa banda, 3 campanatura,
+                        // 4 scaffale basso, 5 scaffale alto. Il passa basso/alto di Poweramp ha un guadagno: si
+                        // comporta come uno scaffale risonante, il passa banda come una campana più larga.
+                        val t = b.optInt("type", 3)
+                        val ty = when (t) {
+                            0 -> { approxLpHp++; PeqBand.LS }
+                            1 -> { approxLpHp++; PeqBand.HS }
+                            2 -> { approxBp++; PeqBand.PK }
+                            3 -> PeqBand.PK
+                            4 -> PeqBand.LS
+                            5 -> PeqBand.HS
+                            else -> { unknown++; continue }
+                        }
+                        if (b.optInt("channels", 0) != 0) oneChannel++
                         val q = b.optDouble("q", 0.0).let { if (it <= 0.0) 0.707 else it }.toFloat()
                         list.add(PeqBand(true, ty, b.optDouble("frequency", 1000.0).toFloat().coerceIn(20f, 20000f), g.coerceIn(-24f, 24f), q.coerceIn(0.1f, 20f)))
                     }
                     if (list.isEmpty()) continue
+                    val notes = ArrayList<String>()
+                    if (approxLpHp > 0) notes.add("$approxLpHp passa basso/alto di Poweramp (con guadagno) resi come scaffali")
+                    if (approxBp > 0) notes.add("$approxBp passa banda reso come campana")
+                    if (oneChannel > 0) notes.add("$oneChannel filtri di un solo canale applicati a entrambi")
+                    if (unknown > 0) notes.add("$unknown filtri di tipo sconosciuto saltati")
+                    if (list.size > DspSettings.PEQ_MAX) notes.add("${list.size - DspSettings.PEQ_MAX} filtri oltre il ${DspSettings.PEQ_MAX}° non importati")
                     val name = o.optString("name", "").replace(Regex("\\s+"), " ").trim().take(40).ifEmpty { fallbackName }
-                    out.add(Parametric(name, o.optDouble("preamp", 0.0).toFloat().coerceIn(-30f, 0f), list.take(DspSettings.PEQ_MAX)))
+                    out.add(Parametric(name, o.optDouble("preamp", 0.0).toFloat().coerceIn(-30f, 0f), list.take(DspSettings.PEQ_MAX), notes))
                 }
                 out
             } catch (_: Exception) { emptyList() }
@@ -157,7 +178,8 @@ object PresetText {
             list.add(PeqBand(m.groupValues[1].equals("ON", true), type, f.coerceIn(20f, 20000f), g.coerceIn(-24f, 24f), q.coerceIn(0.1f, 20f)))
         }
         if (list.isEmpty()) return emptyList()
-        return listOf(Parametric(fallbackName, preamp.coerceIn(-30f, 0f), list.take(DspSettings.PEQ_MAX)))
+        val notes = if (list.size > DspSettings.PEQ_MAX) listOf("${list.size - DspSettings.PEQ_MAX} filtri oltre il ${DspSettings.PEQ_MAX}° non importati") else emptyList()
+        return listOf(Parametric(fallbackName, preamp.coerceIn(-30f, 0f), list.take(DspSettings.PEQ_MAX), notes))
     }
 
     /** Testo AutoEQ / Equalizer APO del parametrico. */
@@ -172,14 +194,17 @@ object PresetText {
         return sb.toString()
     }
 
-    /** JSON per l'equalizzatore parametrico di Poweramp (solo campane e shelf). */
+    /** Filtri che Poweramp non ha (i suoi passa basso/alto/banda hanno un guadagno, non tagliano). */
+    fun powerampSkipped(s: DspSettings): Int = s.peq.count { it.on && !it.hasGain }
+
+    /** JSON per l'equalizzatore parametrico di Poweramp: campanatura (3), scaffale basso (4), scaffale alto (5). */
     fun exportPoweramp(name: String, s: DspSettings): String {
         val bands = JSONArray()
         bands.put(JSONObject().put("type", 0).put("channels", 0).put("frequency", 90).put("q", 0.8).put("gain", 0.0).put("color", 0))
         bands.put(JSONObject().put("type", 1).put("channels", 0).put("frequency", 10000).put("q", 0.6).put("gain", 0.0).put("color", 0))
         for (b in s.peq) {
             if (!b.on) continue
-            val t = when (b.type) { PeqBand.PK -> 2; PeqBand.LS -> 4; PeqBand.HS -> 5; else -> continue }
+            val t = when (b.type) { PeqBand.PK -> 3; PeqBand.LS -> 4; PeqBand.HS -> 5; else -> continue }
             bands.put(JSONObject().put("type", t).put("channels", 0).put("frequency", b.freq.toDouble()).put("q", b.q.toDouble()).put("gain", b.gain.toDouble()).put("color", -15649895))
         }
         val o = JSONObject().put("name", name).put("preamp", s.peqPreamp.toDouble()).put("parametric", true).put("bands", bands)
