@@ -141,7 +141,7 @@ private const val VU_N = 2048
 private fun vuFrac(db: Float): Float = (10f.pow(db / 20f) / 10f.pow(VU_MAX_DB / 20f)).coerceIn(0f, 1.06f)
 
 @Composable
-private fun MetersPlate(env: AppEnv, modifier: Modifier) {
+internal fun MetersPlate(env: AppEnv, modifier: Modifier, plated: Boolean = true) {
     val an = env.engine.analyzer
     val st = remember { VuState() }
     DisposableEffect(Unit) {
@@ -198,7 +198,7 @@ private fun MetersPlate(env: AppEnv, modifier: Modifier) {
         }
     }
 
-    Column(modifier.fillMaxWidth().plate().padding(horizontal = 12.dp, vertical = 8.dp)) {
+    Column((if (plated) modifier.fillMaxWidth().plate() else modifier.fillMaxWidth()).padding(horizontal = 12.dp, vertical = 8.dp)) {
         val s = env.settings
         val fb = env.feedback
         val f = Hifi.finish

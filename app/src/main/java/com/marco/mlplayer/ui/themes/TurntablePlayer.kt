@@ -1,6 +1,15 @@
 package com.marco.mlplayer.ui.themes
 
 import androidx.compose.animation.core.animateFloatAsState
+import kotlin.math.log10
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.filled.RepeatOne
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -33,7 +42,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -82,20 +90,26 @@ private class DeckColors(
     val name: String,
     val bg: Color, val p1: Color, val p2: Color, val text: Color, val faint: Color, val line: Color, val track: Color,
     val metal: Color, val arm: Color, val btn1: Color, val btn2: Color, val btnInk: Color, val k1: Color, val k2: Color,
+    val accent: Color, val hl: Color, val joint: Color, val armHi: Color, val sArm: Boolean,
+    val lampOn: Color, val lampOff: Color, val knobGlow: Boolean, val meterBg: Color, val meterFill: Color,
 )
 
 private val DeckBlack = DeckColors(
     "NERO", Color(0xFF141516), Color(0xFF26272A), Color(0xFF1C1D1F), Color(0xFFECEDEE), Color(0xFFA3A6AA), Color(0x1AFFFFFF), Color(0x2EFFFFFF),
-    Color(0xFFD4D6D9), Color(0xFFC9CBCE), Color(0xFFD8DADC), Color(0xFFAFB2B5), Color(0xFF232427), Color(0xFF3A3C40), Color(0xFF26272A),
+    Color(0xFFD4D6D9), Color(0xFF1E1F22), Color(0xFF303135), Color(0xFF1B1C1F), Color(0xFFECEDEE), Color(0xFF2A2B2E), Color(0xFF141517),
+    Color(0xFF3D82FF), Color(0x1AFFFFFF), Color(0xFF2A2C30), Color(0x47FFFFFF), true,
+    Color(0xFF4A8CFF), Color(0xFF14254A), true, Color(0xFF0B0B0C), Color(0xFFD4D6D9),
 )
 private val DeckWhite = DeckColors(
     "BIANCO", Color(0xFFE9E8E4), Color(0xFFF6F5F2), Color(0xFFE2E1DD), Color(0xFF1F2022), Color(0xFF56585C), Color(0x1F000000), Color(0x26000000),
     Color(0xFFD9C08A), Color(0xFFC9A55A), Color(0xFFFFFFFF), Color(0xFFDADAD7), Color(0xFF232427), Color(0xFFD9DAD7), Color(0xFFBFC0BD),
+    Color(0xFFE5372C), Color(0x99FFFFFF), Color(0xFFD9C08A), Color(0x73FFFFFF), false,
+    Color(0xFFFF3B30), Color(0xFF5A1A17), false, Color(0xFFCFCFCB), Color(0xFF2A2B2E),
 )
 
 // misure del giradischi (unità di disegno)
 private const val DW = 374f
-private const val DH = 430f
+private const val DH = 372f
 private const val PX = 158f
 private const val PY = 196f
 private const val PR = 146f
@@ -105,10 +119,10 @@ private const val AY = 70f
 private const val SEC_PER_TURN = 1.8f   // 33⅓ giri
 
 /**
- * Layout "Giradischi": piatto a trazione diretta con i puntini stroboscopici, disco con la copertina
- * al centro, braccio che avanza col brano, START·STOP con frenata e partenza, cursore della velocità
- * (±8 %, cambia anche il tono come sul vinile) e 33/45. Trascinando il disco col dito lo si "gratta":
- * il disco segue il dito e al rilascio il brano riprende dal punto raggiunto.
+ * Layout "Giradischi": in alto i VU a lancetta come nel layout Hi-Fi; in basso il piatto a trazione
+ * diretta con i puntini stroboscopici e il disco con la copertina al centro, il braccio che avanza
+ * col brano, poi titolo, avanzamento e comandi (START · STOP con frenata e partenza). Trascinando
+ * il disco col dito lo si "gratta": segue il dito e al rilascio il brano riprende dal punto raggiunto.
  */
 @Composable
 fun TurntablePlayerPanel(env: AppEnv) {
@@ -117,30 +131,22 @@ fun TurntablePlayerPanel(env: AppEnv) {
     val t = e.currentTrack
     val fb = env.feedback
     val pp = rememberPlayPos(env)
+    val lv = rememberLevels(env)
     val scope = rememberCoroutineScope()
     val coverFile = remember(t?.albumKey, env.library.revision) { t?.let { env.library.coverFile(it.albumKey) } }
     val cover = rememberCover(coverFile, 500)
 
-    var pitch by remember { mutableFloatStateOf(0f) }          // −8..+8 %
-    var rpm45 by remember { mutableStateOf(false) }
     var scratching by remember { mutableStateOf(false) }
     var braking by remember { mutableStateOf(false) }
     var rampJob by remember { mutableStateOf<Job?>(null) }
     val androidRoute = e.outputs.path.route == Route.Android && !e.outputs.path.bitPerfectReal
-    val speed = (1f + pitch / 100f) * (if (rpm45) 45f / (100f / 3f) else 1f)
 
     fun applySpeed(v: Float) {
         if (androidRoute) runCatching { e.player.playbackParameters = PlaybackParameters(v, v) }
     }
-    // velocità e tono tornano normali uscendo dal layout
     DisposableEffect(Unit) { onDispose { runCatching { e.player.playbackParameters = PlaybackParameters.DEFAULT } } }
-    androidx.compose.runtime.LaunchedEffect(speed, androidRoute) {
-        if (braking) return@LaunchedEffect
-        if (androidRoute) applySpeed(speed) else runCatching { e.player.playbackParameters = PlaybackParameters.DEFAULT }
-    }
 
-    val turning = (e.isPlaying || braking) && !scratching
-    val spin = rememberSpinner(turning && !braking, 360f / SEC_PER_TURN * speed, rampSec = 0.7f)
+    val spin = rememberSpinner(e.isPlaying && !braking && !scratching, 360f / SEC_PER_TURN, rampSec = 0.7f)
     val arm by animateFloatAsState(if (e.isPlaying || scratching) 20f + 12f * pp.frac else 6f, tween(1100), label = "arm")
     var scratchDeg by remember { mutableFloatStateOf(0f) }
 
@@ -151,41 +157,34 @@ fun TurntablePlayerPanel(env: AppEnv) {
             // frenata: il disco rallenta e il tono scende, poi pausa
             braking = true
             rampJob = scope.launch {
-                if (androidRoute) {
-                    for (i in 1..14) { applySpeed(speed * (1f - i / 15f).coerceAtLeast(0.08f)); delay(45) }
-                }
+                if (androidRoute) for (i in 1..14) { applySpeed((1f - i / 15f).coerceAtLeast(0.08f)); delay(45) }
                 if (e.isPlaying) env.playPause()
                 delay(80)
-                applySpeed(speed)
+                applySpeed(1f)
                 braking = false
             }
         } else {
             // partenza: un attimo di "decollo"
             rampJob = scope.launch {
-                if (androidRoute) applySpeed(speed * 0.3f)
+                applySpeed(0.3f)
                 env.playPause()
-                if (androidRoute) for (i in 1..10) { delay(40); applySpeed(speed * (0.3f + 0.7f * i / 10f)) }
-                applySpeed(speed)
+                if (androidRoute) for (i in 1..10) { delay(40); applySpeed(0.3f + 0.07f * i) }
+                applySpeed(1f)
             }
         }
     }
 
     Column(
-        Modifier.fillMaxSize().clip(RoundedCornerShape(14.dp)).background(c.bg).padding(horizontal = 10.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        Modifier.fillMaxSize().clip(RoundedCornerShape(14.dp)).background(c.bg).padding(horizontal = 8.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("MlPlayer", color = c.text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                Text("GIRADISCHI A TRAZIONE DIRETTA", color = c.faint, fontSize = 9.sp, letterSpacing = 1.8.sp)
-            }
-            Text(
-                qualityShort(env, t).uppercase(Locale.ITALY), color = c.faint, fontSize = 11.sp, letterSpacing = 1.sp,
-                modifier = Modifier.clickable { fb.tapScreen(); env.showSignalPath = true }
-            )
+        // VU a lancetta, come nel layout Hi-Fi
+        Box(Modifier.fillMaxWidth().shadow(6.dp, RoundedCornerShape(10.dp)).clip(RoundedCornerShape(10.dp)).background(Brush.verticalGradient(listOf(c.p1, c.p2)))) {
+            com.marco.mlplayer.ui.MetersPlate(env, Modifier, plated = false)
         }
 
-        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+        // giradischi, attaccato ai comandi in basso
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
             val s = min(maxWidth.value / DW, maxHeight.value / DH)
             val w = (DW * s).dp
             val h = (DH * s).dp
@@ -195,11 +194,11 @@ fun TurntablePlayerPanel(env: AppEnv) {
                     .background(Brush.verticalGradient(listOf(c.p1, c.p2)))
             ) {
                 val angle = (spin.angle + scratchDeg) % 360f
+                val lamp = e.isPlaying && !braking
                 Canvas(Modifier.fillMaxSize()) {
                     val k = s * density
-                    scale(k, k, Offset.Zero) { drawDeck(c, angle, e.isPlaying && !braking) }
+                    scale(k, k, Offset.Zero) { drawDeck(c, angle, lamp) }
                 }
-                // copertina al centro del disco
                 val cd = 108f
                 Box(
                     Modifier.offset(u(PX - cd / 2), u(PY - cd / 2)).size(u(cd)).rotate(angle)
@@ -209,7 +208,7 @@ fun TurntablePlayerPanel(env: AppEnv) {
                     if (cover != null) Image(cover, "Copertina", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                     Box(Modifier.size(u(9f)).clip(CircleShape).background(Brush.radialGradient(listOf(Color(0xFFF1F2F3), Color(0xFF8D9095)))))
                 }
-                // zona del disco per lo scratch
+                // il disco si "gratta" col dito
                 val wasPlaying = remember { mutableStateOf(false) }
                 val accum = remember { mutableFloatStateOf(0f) }
                 val last = remember { mutableFloatStateOf(0f) }
@@ -244,35 +243,9 @@ fun TurntablePlayerPanel(env: AppEnv) {
                             }
                         }
                 )
-                // braccio
                 Canvas(Modifier.fillMaxSize()) {
                     val k = s * density
                     scale(k, k, Offset.Zero) { drawArm(c, arm) }
-                }
-                // cursore della velocità
-                PitchSlider(env, c, s, pitch, androidRoute) { pitch = it }
-                // START · STOP e 33/45
-                Box(
-                    Modifier.offset(u(12f), u(DH - 60f)).size(u(70f), u(48f))
-                        .shadow(3.dp, RoundedCornerShape(4.dp)).clip(RoundedCornerShape(4.dp))
-                        .background(Brush.verticalGradient(listOf(c.btn1, c.btn2)))
-                        .semantics { contentDescription = if (e.isPlaying) "Ferma" else "Avvia" }
-                        .clickable(role = Role.Button) { startStop() },
-                    contentAlignment = Alignment.Center
-                ) { Text("START · STOP", color = c.btnInk, fontSize = (9f * s * 1.2f).coerceAtLeast(8f).sp, letterSpacing = 1.sp) }
-                Row(Modifier.offset(u(94f), u(DH - 48f)), horizontalArrangement = Arrangement.spacedBy(u(6f))) {
-                    for ((label, is45) in listOf("33" to false, "45" to true)) {
-                        Row(
-                            Modifier.clip(RoundedCornerShape(3.dp)).background(Brush.verticalGradient(listOf(c.btn1, c.btn2)))
-                                .semantics { contentDescription = "$label giri" }
-                                .clickable(role = Role.RadioButton) { fb.tapScreen(); rpm45 = is45 }
-                                .padding(horizontal = u(8f), vertical = u(4f)),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(label, color = c.btnInk, fontSize = 10.sp)
-                            if (rpm45 == is45) { Spacer(Modifier.width(4.dp)); Box(Modifier.size(6.dp).clip(CircleShape).background(Color(0xFFFF4A3D))) }
-                        }
-                    }
                 }
             }
         }
@@ -291,18 +264,64 @@ fun TurntablePlayerPanel(env: AppEnv) {
             Spacer(Modifier.width(10.dp))
             Text(if (pp.dur > 0) "-" + mmss(pp.dur - pp.pos) else "--:--", color = c.faint, fontSize = 13.sp)
         }
-        Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            SquareKey(c, "Precedente") { fb.tapScreen(); e.previous() }
-            val ribbed = Brush.sweepGradient(List(36) { if (it % 2 == 0) c.k1 else c.k2 })
-            ThemeKnob(env, "BASSI", bassDb(env), TONE_MAX, 46.dp, c.faint, c.text, Color(0xFFFF4A3D), ribbed, Color(0x4D000000)) { setBass(env, it) }
-            ThemeKnob(env, "ALTI", trebleDb(env), TONE_MAX, 46.dp, c.faint, c.text, Color(0xFFFF4A3D), ribbed, Color(0x4D000000)) { setTreble(env, it) }
-            SquareKey(c, "Successivo", next = true) { fb.tapScreen(); e.next() }
+        Column(Modifier.padding(horizontal = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                qualityShort(env, t).uppercase(Locale.ITALY), color = c.faint, fontSize = 11.sp, letterSpacing = 1.5.sp,
+                modifier = Modifier.align(Alignment.CenterHorizontally).clickable { fb.tapScreen(); env.showSignalPath = true }
+            )
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                DeckRound(c, "Casuale", active = e.shuffleOn, onClick = { fb.tapScreen(); e.toggleShuffle() }) {
+                    Icon(Icons.Filled.Shuffle, null, tint = if (e.shuffleOn) c.accent else c.btnInk, modifier = Modifier.size(18.dp))
+                }
+                Spacer(Modifier.width(10.dp))
+                DeckRound(c, "Ripeti", active = e.repeatMode != 0, onClick = { fb.tapScreen(); e.cycleRepeat() }) {
+                    Icon(if (e.repeatMode == 2) Icons.Filled.RepeatOne else Icons.Filled.Repeat, null, tint = if (e.repeatMode != 0) c.accent else c.btnInk, modifier = Modifier.size(18.dp))
+                }
+                Spacer(Modifier.weight(1f))
+                val vol = e.volume
+                Text(
+                    if (vol <= 0.001f) "MUTO" else if (vol >= 0.999f) "VOL 0 dB" else String.format(Locale.ITALY, "VOL %.0f dB", 20f * log10(vol)),
+                    color = c.faint, fontSize = 10.sp, letterSpacing = 1.sp
+                )
+                Spacer(Modifier.width(10.dp))
+                DeckRound(c, "Volume giù", onClick = { fb.tapScreen(); stepVolume(env, -2f) }) { Text("−", color = c.btnInk, fontSize = 22.sp, fontWeight = FontWeight.Light) }
+                Spacer(Modifier.width(10.dp))
+                DeckRound(c, "Volume su", onClick = { fb.tapScreen(); stepVolume(env, 2f) }) { Text("+", color = c.btnInk, fontSize = 22.sp, fontWeight = FontWeight.Light) }
+            }
+            Row(Modifier.fillMaxWidth().height(72.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                DeckKey(c, "Precedente", Modifier.weight(1f), { fb.tapScreen(); e.previous() }) {
+                    Icon(Icons.Filled.SkipPrevious, null, tint = c.btnInk, modifier = Modifier.size(28.dp))
+                }
+                DeckKey(c, if (e.isPlaying) "Ferma" else "Avvia", Modifier.weight(1f), { startStop() }) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Filled.PlayArrow, null, tint = c.accent, modifier = Modifier.size(30.dp))
+                        Text("START · STOP", color = c.btnInk, fontSize = 9.sp, letterSpacing = 1.5.sp)
+                    }
+                }
+                DeckKey(c, "Successivo", Modifier.weight(1f), { fb.tapScreen(); e.next() }) {
+                    Icon(Icons.Filled.SkipNext, null, tint = c.btnInk, modifier = Modifier.size(28.dp))
+                }
+                Row(Modifier.width(46.dp).fillMaxHeight(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    DeckMeter(c, "L", lv.l, lv.pl)
+                    DeckMeter(c, "R", lv.r, lv.pr)
+                }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
+                val ribbed = Brush.sweepGradient(List(36) { if (it % 2 == 0) c.k1 else c.k2 })
+                val rim = if (c.knobGlow) c.accent.copy(alpha = 0.55f) else Color(0x4D000000)
+                ThemeKnob(env, "BASSI", bassDb(env), TONE_MAX, 68.dp, c.faint, c.text, c.accent, ribbed, rim) { setBass(env, it) }
+                ThemeKnob(env, "ALTI", trebleDb(env), TONE_MAX, 68.dp, c.faint, c.text, c.accent, ribbed, rim) { setTreble(env, it) }
+            }
         }
     }
 }
 
-private fun DrawScope.drawDeck(@Suppress("UNUSED_PARAMETER") c: DeckColors, angle: Float, lampOn: Boolean) {
+private fun DrawScope.drawDeck(c: DeckColors, angle: Float, lampOn: Boolean) {
     val pc = Offset(PX, PY)
+    // adattatore dei 45 giri (decorazione)
+    drawCircle(Color(0xFF0B0B0C), 20f, Offset(30f, 30f))
+    drawCircle(Brush.radialGradient(listOf(Color(0xFFF4F5F6), Color(0xFFC9CBCE), Color(0xFF8D9095)), Offset(30f, 30f), 17f), 17f, Offset(30f, 30f))
+    drawCircle(Color(0xFF1A1B1D), 3f, Offset(30f, 30f))
     drawCircle(Color(0xFF0B0B0C), PR + 3f, pc)
     drawCircle(
         Brush.radialGradient(0.86f to Color(0xFF2A2B2E), 0.9f to Color(0xFFC9CBCE), 0.97f to Color(0xFF8D9095), 1f to Color(0xFF5C5F63), center = pc, radius = PR),
@@ -315,18 +334,17 @@ private fun DrawScope.drawDeck(@Suppress("UNUSED_PARAMETER") c: DeckColors, angl
                 drawCircle(col, rad, Offset(PX + r * cos(a), PY + r * sin(a)))
             }
         }
-        // disco
         drawCircle(Color(0xFF121214), VR, pc)
         var r = VR - 6f
         while (r > 56f) { drawCircle(Color(0xFF1C1D20), r, pc, style = Stroke(1f)); r -= 3f }
         drawCircle(Color(0xFF0D0D0F), VR, pc, style = Stroke(6f))
     }
-    // riflessi fissi del vinile
     drawArc(Color(0x17FFFFFF), 30f, 30f, true, Offset(PX - VR, PY - VR), Size(2 * VR, 2 * VR))
     drawArc(Color(0x12FFFFFF), 205f, 30f, true, Offset(PX - VR, PY - VR), Size(2 * VR, 2 * VR))
-    // luce stroboscopica
-    if (lampOn) drawCircle(Color(0x66FF3B30), 14f, Offset(30f, 306f))
-    drawCircle(if (lampOn) Color(0xFFFF3B30) else Color(0xFF5A1A17), 6f, Offset(30f, 306f))
+    // luce stroboscopica che illumina il bordo del piatto
+    val lp = Offset(30f, 306f)
+    if (lampOn) drawCircle(Brush.radialGradient(listOf(c.lampOn.copy(alpha = 0.55f), Color.Transparent), lp, 34f), 34f, lp)
+    drawCircle(if (lampOn) c.lampOn else c.lampOff, 6f, lp)
     // base del braccio
     drawCircle(Color(0xFF2E3033), 38f, Offset(AX, AY))
     drawCircle(Color(0xFF1A1B1D), 19f, Offset(AX, AY))
@@ -338,75 +356,32 @@ private fun DrawScope.drawArm(c: DeckColors, angle: Float) {
     rotate(angle, pivot) {
         val ox = AX - 60f
         val oy = AY - 60f
-        drawRoundRect(c.metal, Offset(ox + 49f, oy), Size(22f, 34f), CornerRadius(4f))
-        drawRoundRect(Color(0xFF44474B), Offset(ox + 49f, oy), Size(22f, 34f), CornerRadius(4f), style = Stroke(1f))
-        drawCircle(c.metal, 16f, pivot)
+        // contrappeso argento con anelli neri
+        drawRoundRect(c.metal, Offset(ox + 47f, oy - 4f), Size(26f, 38f), CornerRadius(5f))
+        drawRoundRect(Color(0xFF44474B), Offset(ox + 47f, oy - 4f), Size(26f, 38f), CornerRadius(5f), style = Stroke(1f))
+        drawLine(Color(0xFF1A1B1D), Offset(ox + 47f, oy + 6f), Offset(ox + 73f, oy + 6f), 2f)
+        drawLine(Color(0xFF1A1B1D), Offset(ox + 47f, oy + 24f), Offset(ox + 73f, oy + 24f), 2f)
+        drawCircle(c.joint, 16f, pivot)
         drawCircle(Color(0xFF44474B), 16f, pivot, style = Stroke(1.5f))
         drawCircle(Color(0xFF2A2C30), 6f, pivot)
         val tube = Path().apply {
-            moveTo(ox + 60f, oy + 60f); lineTo(ox + 60f, oy + 205f); quadraticTo(ox + 60f, oy + 240f, ox + 34f, oy + 268f)
-        }
-        drawPath(tube, Color(0x73000000), style = Stroke(7f, cap = StrokeCap.Round))
-        drawPath(tube, c.arm, style = Stroke(5f, cap = StrokeCap.Round))
-        rotate(28f, Offset(ox + 31f, oy + 282f)) {
-            drawRoundRect(Color(0xFF1B1C1F), Offset(ox + 18f, oy + 262f), Size(26f, 40f), CornerRadius(3f))
-            drawRoundRect(Color(0xFF55585D), Offset(ox + 18f, oy + 262f), Size(26f, 40f), CornerRadius(3f), style = Stroke(1f))
-            drawRoundRect(c.metal, Offset(ox + 30f, oy + 258f), Size(10f, 8f), CornerRadius(1f))
-        }
-    }
-}
-
-@Composable
-private fun PitchSlider(env: AppEnv, c: DeckColors, s: Float, pitch: Float, enabled: Boolean, onChange: (Float) -> Unit) {
-    val change = rememberUpdatedState(onChange)
-    fun u(v: Float) = (v * s).dp
-    var lastStep by remember { mutableIntStateOf(0) }
-    Column(Modifier.offset(u(DW - 64f), u(278f)), horizontalAlignment = Alignment.CenterHorizontally) {
-        Canvas(
-            Modifier.size(u(52f), u(132f))
-                .semantics { contentDescription = "Velocità ${String.format(Locale.ITALY, "%+.1f", pitch)} %" }
-                .pointerInput(enabled) {
-                    if (!enabled) return@pointerInput
-                    detectTapGestures(onDoubleTap = { change.value(0f) })
-                }
-                .pointerInput(enabled) {
-                    if (!enabled) return@pointerInput
-                    detectDragGestures { ch, _ ->
-                        ch.consume()
-                        val top = 10f * s * density
-                        val bot = size.height - 10f * s * density
-                        val f = ((ch.position.y - top) / (bot - top)).coerceIn(0f, 1f)
-                        var v = -8f + 16f * f
-                        if (kotlin.math.abs(v) < 0.4f) v = 0f
-                        val st = (v * 2).toInt()
-                        if (st != lastStep) { lastStep = st; env.feedback.wheelStep() }
-                        change.value((v * 10f).toInt() / 10f)
-                    }
-                }
-        ) {
-            val k = s * density
-            scale(k, k, Offset.Zero) {
-                val tx = 34f
-                drawRoundRect(Color(0xFF0B0B0C), Offset(tx - 8f, 0f), Size(16f, 132f), CornerRadius(3f))
-                drawLine(Color(0xFF3A3C40), Offset(tx, 8f), Offset(tx, 124f), 2f)
-                for (i in 0..8) {
-                    val y = 10f + 112f * i / 8f
-                    drawLine(c.faint, Offset(14f, y), Offset(20f, y), 1f)
-                }
-                drawCircle(Color(0xFFC6F04A), 2f, Offset(tx - 12f, 66f))
-                val y = 10f + 112f * ((pitch + 8f) / 16f)
-                drawRoundRect(Color(0x80000000), Offset(tx - 14f, y - 8f), Size(28f, 18f), CornerRadius(3f))
-                drawRoundRect(
-                    Brush.verticalGradient(listOf(Color(0xFFF1F2F3), Color(0xFFA9ACB0)), startY = y - 9f, endY = y + 9f),
-                    Offset(tx - 14f, y - 9f), Size(28f, 18f), CornerRadius(3f)
-                )
-                drawLine(Color(0xFF3A3C40), Offset(tx - 11f, y), Offset(tx + 11f, y), 2f)
+            moveTo(ox + 60f, oy + 60f)
+            if (c.sArm) {
+                cubicTo(ox + 60f, oy + 120f, ox + 78f, oy + 160f, ox + 66f, oy + 205f)
+                cubicTo(ox + 54f, oy + 250f, ox + 36f, oy + 248f, ox + 34f, oy + 268f)
+            } else {
+                lineTo(ox + 60f, oy + 205f); quadraticTo(ox + 60f, oy + 240f, ox + 34f, oy + 268f)
             }
         }
-        Text(
-            if (enabled) String.format(Locale.ITALY, "%+.1f %%", pitch).replace("+0,0", "0,0") else "SOLO USCITA ANDROID",
-            color = c.faint, fontSize = 8.sp, letterSpacing = 0.5.sp
-        )
+        drawPath(tube, Color(0xFF0B0B0C), style = Stroke(8f, cap = StrokeCap.Round))
+        drawPath(tube, c.arm, style = Stroke(6f, cap = StrokeCap.Round))
+        translate(-1.5f, 0f) { drawPath(tube, c.armHi, style = Stroke(1.2f, cap = StrokeCap.Round)) }
+        rotate(28f, Offset(ox + 31f, oy + 282f)) {
+            drawRoundRect(Color(0xFF141517), Offset(ox + 18f, oy + 262f), Size(26f, 40f), CornerRadius(3f))
+            drawRoundRect(Color(0xFF55585D), Offset(ox + 18f, oy + 262f), Size(26f, 40f), CornerRadius(3f), style = Stroke(1f))
+            drawRoundRect(c.metal, Offset(ox + 30f, oy + 258f), Size(10f, 8f), CornerRadius(1f))
+            drawLine(c.metal, Offset(ox + 40f, oy + 290f), Offset(ox + 56f, oy + 296f), 2f, cap = StrokeCap.Round)
+        }
     }
 }
 
@@ -435,12 +410,49 @@ private fun ProgressLine(env: AppEnv, pp: PlayPos, c: DeckColors, modifier: Modi
 }
 
 @Composable
-private fun SquareKey(c: DeckColors, desc: String, next: Boolean = false, onClick: () -> Unit) {
+private fun DeckRound(c: DeckColors, desc: String, active: Boolean = false, onClick: () -> Unit, content: @Composable () -> Unit) {
     Box(
-        Modifier.size(52.dp, 44.dp).shadow(3.dp, RoundedCornerShape(4.dp)).clip(RoundedCornerShape(4.dp))
+        Modifier.size(44.dp).shadow(3.dp, CircleShape).clip(CircleShape)
             .background(Brush.verticalGradient(listOf(c.btn1, c.btn2)))
+            .border(if (active) 2.dp else 1.dp, if (active) c.accent else Color(0x59000000), CircleShape)
             .semantics { contentDescription = desc }
             .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center
-    ) { Icon(if (next) Icons.Filled.SkipNext else Icons.Filled.SkipPrevious, null, tint = c.btnInk) }
+    ) { content() }
+}
+
+@Composable
+private fun DeckKey(c: DeckColors, desc: String, modifier: Modifier, onClick: () -> Unit, content: @Composable () -> Unit) {
+    val src = remember { MutableInteractionSource() }
+    val pressed by src.collectIsPressedAsState()
+    Box(
+        modifier
+            .fillMaxHeight()
+            .padding(top = if (pressed) 3.dp else 0.dp)
+            .shadow(if (pressed) 1.dp else 5.dp, RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(6.dp))
+            .background(Brush.verticalGradient(listOf(c.btn1, c.btn2)))
+            .border(1.dp, c.hl, RoundedCornerShape(6.dp))
+            .semantics { contentDescription = desc }
+            .clickable(interactionSource = src, indication = null, role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) { content() }
+}
+
+@Composable
+private fun DeckMeter(c: DeckColors, label: String, v: Float, peak: Float) {
+    Column(Modifier.fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Canvas(Modifier.weight(1f).width(8.dp)) {
+            val w = 6.dp.toPx()
+            val x = (size.width - w) / 2f
+            drawRoundRect(c.meterBg, Offset(x, 0f), Size(w, size.height), CornerRadius(w / 2))
+            val h = size.height * v
+            drawRoundRect(c.meterFill, Offset(x, size.height - h), Size(w, h), CornerRadius(w / 2))
+            if (peak > 0.01f) {
+                val py = size.height * (1f - peak)
+                drawLine(c.accent, Offset(0f, py), Offset(size.width, py), 2.dp.toPx())
+            }
+        }
+        Text(label, color = c.faint, fontSize = 10.sp)
+    }
 }
