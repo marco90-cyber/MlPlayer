@@ -65,6 +65,10 @@ class Settings(context: Context) {
     var finishId by StringPref(sp, "finish", "nero")
     /** Layout del lettore: 0 = Hi-Fi (VU, display, manopole), 1 = Copertina a tutto schermo */
     var playerLayout by IntPref(sp, "player_layout", 0)
+    /** Varianti dei layout a tema: Alluminio scuro (Grafite), colore della Cassetta, Giradischi bianco. */
+    var aluDark by BoolPref(sp, "alu_dark", false)
+    var cassetteColor by IntPref(sp, "cassette_color", 0)
+    var turntableWhite by BoolPref(sp, "turntable_white", false)
     /** Luce degli strumenti: 0 = bassa, 1 = media, 2 = alta */
     var meterLight by IntPref(sp, "meter_light", 2)
     /** Lancette dei VU: 0 = morbide (300 ms), 1 = rapide (120 ms) */

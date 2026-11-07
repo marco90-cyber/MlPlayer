@@ -353,6 +353,7 @@ fun AppEnv.aboutScreen(): MenuScreen = MenuScreen("Informazioni") {
         info("Licenza", "GPL-3.0 o successiva"),
         info("Componenti", "AndroidX Media3, Jetpack Compose, Oboe (Apache 2.0); libsoxr (LGPL); FFmpeg decoder Jellyfin (GPL-3.0)"),
         info("AutoEQ", "Profili delle cuffie di AutoEQ, Jaakko Pasanen (MIT)"),
+        info("Caveat e DotGothic16", "Caratteri dei temi Cassetta e Alluminio (SIL Open Font License 1.1)"),
         info("Da LastWave", "Uscite USB esclusiva, diretta e AAudio, bit-perfect, percorso del segnale, layout Copertina (GPL-3.0); driver USB decent-player (MIT)"),
     )
 }

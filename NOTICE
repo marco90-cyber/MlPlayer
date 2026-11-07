@@ -37,3 +37,7 @@ Testo della licenza in app/src/main/assets/autoeq-LICENSE.txt. I profili paramet
 inclusi in app/src/main/assets/autoeq.tsv.gz (formato compatto).
 Il profilo "OneOdio Pro 30" e' ricostruito con il codice di AutoEQ dal grafico di
 audio-sound@hatena (target Harman over-ear 2018): non e' una misura AutoEQ.
+
+Caveat (Copyright 2014 The Caveat Project Authors) e DotGothic16 (Copyright 2020 The DotGothic16 Project Authors):
+SIL Open Font License 1.1, testi in licenses/Caveat-OFL.txt e licenses/DotGothic16-OFL.txt.
+Usati in sottoinsieme latino in app/src/main/res/font/ (caveat.ttf, dotgothic16.ttf).

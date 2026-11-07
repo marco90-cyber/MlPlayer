@@ -190,6 +190,28 @@ private fun MenuRow(env: AppEnv, item: MenuItem, onClick: () -> Unit) {
 // ---------------------------------------------------------------- Aspetto
 
 @Composable
+private fun VariantRow(env: AppEnv, title: String, options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+    val f = Hifi.finish
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(title.uppercase(), color = f.vfd.copy(alpha = 0.8f), fontSize = 11.sp, fontFamily = Hifi.Condensed)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            for ((i, o) in options.withIndex()) {
+                val sel = i == selected
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .heightIn(min = 44.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .border(if (sel) 2.dp else 1.dp, if (sel) f.vfd else f.vfdDim, RoundedCornerShape(8.dp))
+                        .clickable(role = Role.RadioButton) { env.feedback.tapScreen(); onSelect(i) },
+                    contentAlignment = Alignment.Center
+                ) { Text(o, color = f.vfd, fontSize = 13.sp, fontFamily = Hifi.Condensed, modifier = Modifier.padding(6.dp)) }
+            }
+        }
+    }
+}
+
+@Composable
 private fun AppearanceView(env: AppEnv) {
     val s = env.settings
     val f = Hifi.finish
@@ -198,27 +220,40 @@ private fun AppearanceView(env: AppEnv) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Vfd("LAYOUT DEL LETTORE", 12.sp)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            for ((i, name) in listOf("Hi-Fi", "Copertina").withIndex()) {
-                val sel = s.playerLayout == i
-                Box(
-                    Modifier
-                        .weight(1f)
-                        .heightIn(min = 48.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .border(if (sel) 2.dp else 1.dp, if (sel) f.vfd else f.vfdDim, RoundedCornerShape(8.dp))
-                        .clickable(role = Role.RadioButton) { env.feedback.tapScreen(); s.playerLayout = i },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(8.dp)) {
-                        Text(name, color = f.vfd, fontSize = 15.sp, fontFamily = Hifi.CondensedBold)
-                        Text(
-                            if (i == 0) "VU, display e manopole" else "Copertina grande (stile LastWave)",
-                            color = f.vfd.copy(alpha = 0.7f), fontSize = 11.sp, fontFamily = Hifi.Condensed
-                        )
+        val layouts = listOf(
+            "Hi-Fi" to "VU, display e manopole",
+            "Copertina" to "Copertina grande (stile LastWave)",
+            "Alluminio" to "Disco che gira, tasti larghi",
+            "Cassetta" to "Lettore portatile a cassette",
+            "Giradischi" to "Piatto, braccio e scratch",
+        )
+        for (row in layouts.withIndex().chunked(2)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                for ((i, pair) in row) {
+                    val (name, sub) = pair
+                    val sel = s.playerLayout == i
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .border(if (sel) 2.dp else 1.dp, if (sel) f.vfd else f.vfdDim, RoundedCornerShape(8.dp))
+                            .clickable(role = Role.RadioButton) { env.feedback.tapScreen(); s.playerLayout = i },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(8.dp)) {
+                            Text(name, color = f.vfd, fontSize = 15.sp, fontFamily = Hifi.CondensedBold)
+                            Text(sub, color = f.vfd.copy(alpha = 0.7f), fontSize = 11.sp, fontFamily = Hifi.Condensed)
+                        }
                     }
                 }
+                if (row.size == 1) Spacer(Modifier.weight(1f))
             }
+        }
+        when (s.playerLayout) {
+            2 -> VariantRow(env, "Versione", listOf("Alluminio (chiaro)", "Grafite (scuro)"), if (s.aluDark) 1 else 0) { s.aluDark = it == 1 }
+            3 -> VariantRow(env, "Colore", com.marco.mlplayer.ui.themes.CassetteColors.map { it.name }, s.cassetteColor) { s.cassetteColor = it }
+            4 -> VariantRow(env, "Versione", listOf("Nero", "Bianco e oro"), if (s.turntableWhite) 1 else 0) { s.turntableWhite = it == 1 }
         }
         VSpace(4.dp)
         Vfd("FINITURA", 12.sp)

@@ -103,7 +103,13 @@ private fun HifiContent(env: AppEnv) {
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 Crossfade(targetState = env.tab, animationSpec = tween(180), label = "tab") { t ->
                     when (t) {
-                        Tab.NowPlaying -> if (env.settings.playerLayout == 1) CoverPlayerPanel(env) else NowPlayingPanel(env)
+                        Tab.NowPlaying -> when (env.settings.playerLayout) {
+                            1 -> CoverPlayerPanel(env)
+                            2 -> com.marco.mlplayer.ui.themes.AluminiumPlayerPanel(env)
+                            3 -> com.marco.mlplayer.ui.themes.CassettePlayerPanel(env)
+                            4 -> com.marco.mlplayer.ui.themes.TurntablePlayerPanel(env)
+                            else -> NowPlayingPanel(env)
+                        }
                         Tab.Library -> MenuPanel(env, env.libraryNav)
                         Tab.Settings -> MenuPanel(env, env.settingsNav)
                         Tab.Eq -> FramedPanel("EQUALIZZATORE") { EqualizerScreen(env) }
