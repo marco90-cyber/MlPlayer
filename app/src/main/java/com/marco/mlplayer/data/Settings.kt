@@ -72,6 +72,9 @@ class Settings(context: Context) {
     /** Riferimento dei VU: livello RMS in dBFS che vale 0 VU (-20/-18/-14/-12), 0 = scala in dBFS di picco. */
     var vuRef by IntPref(sp, "vu_ref", -14)
     var displayGlow by BoolPref(sp, "display_glow", true)
+
+    /** Curva dell'equalizzatore fissata in alto: scorrendo diventa una striscia compatta. */
+    var curvePinned by BoolPref(sp, "curve_pinned", true)
     var brushedTexture by BoolPref(sp, "brushed_texture", true)
     var coverInMenu by BoolPref(sp, "cover_in_menu", true)
     var keepScreenOn by BoolPref(sp, "keep_screen_on", false)

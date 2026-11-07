@@ -152,7 +152,7 @@ object AutoEqDb {
     private fun get(url: String): String {
         val c = (URL(url).openConnection() as HttpURLConnection).apply {
             connectTimeout = 15000; readTimeout = 30000
-            setRequestProperty("User-Agent", "MlPlayer (Android)")
+            setRequestProperty("User-Agent", "MLEqualizer (Android)")
         }
         try {
             if (c.responseCode !in 200..299) throw IllegalStateException("HTTP ${c.responseCode}")

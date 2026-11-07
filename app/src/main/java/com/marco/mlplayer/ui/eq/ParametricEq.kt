@@ -1,5 +1,7 @@
 package com.marco.mlplayer.ui.eq
 
+import com.marco.mlplayer.ui.AppEnv
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
@@ -48,7 +50,6 @@ import androidx.compose.ui.unit.sp
 import com.marco.mlplayer.audio.AutoEqDb
 import com.marco.mlplayer.audio.DspSettings
 import com.marco.mlplayer.audio.PeqBand
-import com.marco.mlplayer.ui.AppEnv
 import com.marco.mlplayer.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
