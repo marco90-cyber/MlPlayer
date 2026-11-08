@@ -139,39 +139,20 @@ fun TurntablePlayerPanel(env: AppEnv) {
     var scratching by remember { mutableStateOf(false) }
     var braking by remember { mutableStateOf(false) }
     var rampJob by remember { mutableStateOf<Job?>(null) }
-    val androidRoute = e.outputs.path.route == Route.Android && !e.outputs.path.bitPerfectReal
-
-    fun applySpeed(v: Float) {
-        if (androidRoute) runCatching { e.player.playbackParameters = PlaybackParameters(v, v) }
-    }
-    DisposableEffect(Unit) { onDispose { runCatching { e.player.playbackParameters = PlaybackParameters.DEFAULT } } }
 
     val spin = rememberSpinner(e.isPlaying && !braking && !scratching, 360f / SEC_PER_TURN, rampSec = 0.7f)
     val arm by animateFloatAsState(if (e.isPlaying || scratching) 20f + 12f * pp.frac else 6f, tween(1100), label = "arm")
     var scratchDeg by remember { mutableFloatStateOf(0f) }
 
     fun startStop() {
+        // solo effetto visivo: il piatto frena e riparte, il suono no
         fb.tapScreen()
         rampJob?.cancel()
         if (e.isPlaying) {
-            // frenata: il disco rallenta e il tono scende, poi pausa
             braking = true
-            rampJob = scope.launch {
-                if (androidRoute) for (i in 1..14) { applySpeed((1f - i / 15f).coerceAtLeast(0.08f)); delay(45) }
-                if (e.isPlaying) env.playPause()
-                delay(80)
-                applySpeed(1f)
-                braking = false
-            }
-        } else {
-            // partenza: un attimo di "decollo"
-            rampJob = scope.launch {
-                applySpeed(0.3f)
-                env.playPause()
-                if (androidRoute) for (i in 1..10) { delay(40); applySpeed(0.3f + 0.07f * i) }
-                applySpeed(1f)
-            }
-        }
+            env.playPause()
+            rampJob = scope.launch { delay(700); braking = false }
+        } else env.playPause()
     }
 
     Column(
