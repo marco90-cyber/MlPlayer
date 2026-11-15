@@ -126,7 +126,7 @@ class AppEnv(val app: MLPlayerApp) {
 
     fun requestWrite(tree: String, then: () -> Unit) {
         afterWriteGrant = then
-        message = "Per scrivere nei file scegli di nuovo la cartella della musica e consenti l'accesso"
+        message = "Scegli la cartella «${folderName(tree)}» (o una che la contiene) e tocca «Usa questa cartella»"
         actions?.requestWriteAccess(tree)
     }
 
@@ -147,7 +147,10 @@ class AppEnv(val app: MLPlayerApp) {
      * Scrive nei file dei [tracks] con [op], poi rilegge la libreria e aggiorna la coda.
      * Se manca il permesso chiede la cartella e, una volta concesso, ricomincia da capo.
      */
-    fun writeFiles(tracks: List<Track>, what: String, op: (Track) -> com.marco.mlplayer.tags.WriteResult, done: () -> Unit = {}) {
+    fun writeFiles(
+        tracks: List<Track>, what: String, op: (Track) -> com.marco.mlplayer.tags.WriteResult,
+        done: () -> Unit = {}, askAccess: Boolean = true,
+    ) {
         app.appScope.launch {
             val ok = ArrayList<String>()
             var failed = 0
@@ -157,7 +160,13 @@ class AppEnv(val app: MLPlayerApp) {
                 when (r) {
                     is com.marco.mlplayer.tags.WriteResult.Ok -> ok += t.uri
                     is com.marco.mlplayer.tags.WriteResult.NoAccess -> {
-                        requestWrite(r.tree) { writeFiles(tracks.filter { it.uri !in ok }, what, op, done) }
+                        if (askAccess) {
+                            // dopo il permesso si riprova una volta sola: niente selettore all'infinito
+                            requestWrite(r.tree) { writeFiles(tracks.filter { it.uri !in ok }, what, op, done, askAccess = false) }
+                        } else {
+                            message = "La cartella scelta non contiene questo brano: serve «${folderName(r.tree)}» o una cartella che la contiene"
+                            done()
+                        }
                         stop = true
                     }
                     is com.marco.mlplayer.tags.WriteResult.Unsupported -> failed++

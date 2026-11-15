@@ -3,6 +3,7 @@ package com.marco.mlplayer.tags
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.provider.DocumentsContract
 import com.marco.mlplayer.data.Settings
 import com.marco.mlplayer.data.Track
 import com.marco.mlplayer.util.AppLog
@@ -56,10 +57,25 @@ object TagFiles {
     fun treeOf(settings: Settings, uri: String): String? =
         settings.folders.firstOrNull { uri.startsWith("$it/document/") } ?: settings.folders.firstOrNull { uri.startsWith(it) }
 
-    fun canWrite(ctx: Context, settings: Settings, uri: String): Boolean {
-        val tree = treeOf(settings, uri) ?: return false
-        return ctx.contentResolver.persistedUriPermissions.any { it.uri.toString() == tree && it.isWritePermission }
-    }
+    /**
+     * Indirizzo del brano dentro una cartella con il permesso di scrittura: va bene la stessa cartella
+     * della libreria ma anche una che la contiene (es. "Music" per "Music/Album"). null = nessun permesso.
+     */
+    fun writableUri(ctx: Context, uri: String): Uri? = runCatching {
+        val u = Uri.parse(uri)
+        val docId = DocumentsContract.getDocumentId(u)
+        for (p in ctx.contentResolver.persistedUriPermissions) {
+            if (!p.isWritePermission || p.uri.authority != u.authority) continue
+            val treeId = runCatching { DocumentsContract.getTreeDocumentId(p.uri) }.getOrNull() ?: continue
+            val inside = docId == treeId ||
+                docId.startsWith(treeId.trimEnd('/') + "/") ||
+                (treeId.endsWith(":") && docId.startsWith(treeId))
+            if (inside) return DocumentsContract.buildDocumentUriUsingTree(p.uri, docId)
+        }
+        null
+    }.getOrNull()
+
+    fun canWrite(ctx: Context, uri: String): Boolean = writableUri(ctx, uri) != null
 
     private fun tempFor(ctx: Context, ext: String): File {
         val dir = File(ctx.cacheDir, "tag-edit").apply { mkdirs() }
@@ -102,9 +118,8 @@ object TagFiles {
     /** Modifica il tag del file con [edit] e lo riscrive. */
     fun write(ctx: Context, settings: Settings, t: Track, edit: (Tag) -> Unit): WriteResult {
         if (!canEdit(t.ext)) return WriteResult.Unsupported(t.ext)
-        if (!canWrite(ctx, settings, t.uri)) {
-            return WriteResult.NoAccess(treeOf(settings, t.uri) ?: return WriteResult.Failed("Cartella del brano non trovata"))
-        }
+        val target = writableUri(ctx, t.uri)
+            ?: return WriteResult.NoAccess(treeOf(settings, t.uri) ?: return WriteResult.Failed("Cartella del brano non trovata"))
         var tmp: File? = null
         return try {
             val src = copyIn(ctx, t.uri, t.ext)
@@ -113,8 +128,8 @@ object TagFiles {
             val tag = af.tagOrCreateAndSetDefault
             edit(tag)
             af.commit()
-            val out = runCatching { ctx.contentResolver.openOutputStream(Uri.parse(t.uri), "wt") }.getOrNull()
-                ?: ctx.contentResolver.openOutputStream(Uri.parse(t.uri), "w")
+            val out = runCatching { ctx.contentResolver.openOutputStream(target, "wt") }.getOrNull()
+                ?: ctx.contentResolver.openOutputStream(target, "w")
                 ?: return WriteResult.Failed("Il file non si può aprire in scrittura")
             out.use { o -> src.inputStream().use { it.copyTo(o) } }
             AppLog.i("Tag", "Tag scritti in ${t.title}")

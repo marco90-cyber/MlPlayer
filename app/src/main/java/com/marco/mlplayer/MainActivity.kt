@@ -59,12 +59,6 @@ class MainActivity : ComponentActivity(), Actions {
                 app.env.message = "Questa cartella non si può modificare"
                 return@registerForActivityResult
             }
-            val known = uri.toString() in app.settings.folders
-            if (!known) {
-                // scelta un'altra cartella: la aggiungo alla libreria
-                app.settings.addFolder(uri.toString())
-                app.env.startScan(false)
-            }
             AppLog.i("Libreria", "Permesso di scrittura concesso: $uri")
             app.env.onWriteGranted()
         }
@@ -133,7 +127,12 @@ class MainActivity : ComponentActivity(), Actions {
 
     override fun requestWriteAccess(tree: String) {
         try {
-            writePicker.launch(Uri.parse(tree))
+            // il selettore si apre già sulla cartella della musica
+            val start = runCatching {
+                val t = Uri.parse(tree)
+                android.provider.DocumentsContract.buildDocumentUriUsingTree(t, android.provider.DocumentsContract.getTreeDocumentId(t))
+            }.getOrNull()
+            writePicker.launch(start)
         } catch (e: Exception) {
             AppLog.e("Libreria", "Selettore cartelle non disponibile", e)
         }
