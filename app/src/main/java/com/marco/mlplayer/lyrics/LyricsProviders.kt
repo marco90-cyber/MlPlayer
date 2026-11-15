@@ -18,13 +18,21 @@ data class LyricsQuery(val title: String, val artist: String, val album: String,
  * Fonti dei testi su internet. Idee e indirizzi presi da LastWave (GPL-3.0,
  * github.com/Clash-Projects/LastWave-native): solo fonti pubbliche, senza account né chiavi.
  */
-enum class LyricsProvider(val id: String, val title: String, val description: String) {
+enum class LyricsProvider(
+    val id: String,
+    val title: String,
+    val description: String,
+    /** Fonti sperimentali (YouTube): mai scelte in automatico, cercate solo dalla scelta della fonte. */
+    val experimental: Boolean = false,
+) {
     Lrclib("lrclib", "LRCLIB", "Archivio libero di testi sincronizzati riga per riga"),
     Apple("apple", "Apple Music", "Testi sincronizzati parola per parola (tramite BetterLyrics)"),
     QQ("qq", "QQ Music", "Tempi delle parole in stile karaoke (tramite BetterLyrics)"),
     Kugou("kugou", "Kugou", "Testi KRC sincronizzati parola per parola"),
     Unison("unison", "Unison", "Archivio di testi inviati dagli utenti"),
-    LyricsOvh("lyricsovh", "Lyrics.ovh", "Solo testo, senza tempi");
+    LyricsOvh("lyricsovh", "Lyrics.ovh", "Solo testo, senza tempi"),
+    YouTubeMusic("ytmusic", "YouTube Music", "Sperimentale · testo della scheda «Testo», senza tempi", experimental = true),
+    YouTubeCaptions("ytcaptions", "YouTube (sottotitoli)", "Sperimentale · sottotitoli caricati a mano di un video; i tempi possono richiedere il ritardo", experimental = true);
 
     suspend fun fetch(q: LyricsQuery): Lyrics? = runCatching {
         when (this) {
@@ -34,6 +42,8 @@ enum class LyricsProvider(val id: String, val title: String, val description: St
             Kugou -> Providers.kugou(q)
             Unison -> Providers.unison(q)
             LyricsOvh -> Providers.lyricsOvh(q)
+            YouTubeMusic -> YouTubeLyrics.musicTab(q)
+            YouTubeCaptions -> YouTubeLyrics.captions(q)
         }
     }.getOrNull()?.takeIf { !it.isEmpty }
 

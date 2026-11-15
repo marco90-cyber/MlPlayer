@@ -31,6 +31,8 @@ object Http {
         post: String? = null,
         timeoutMs: Int = 9000,
         maxBytes: Int = 16 * 1024 * 1024,
+        headers: Map<String, String> = emptyMap(),
+        contentType: String = "application/x-www-form-urlencoded; charset=UTF-8",
     ): Response? = try {
         val c = URL(url).openConnection() as HttpURLConnection
         try {
@@ -39,10 +41,11 @@ object Http {
             c.instanceFollowRedirects = true
             c.setRequestProperty("User-Agent", ua)
             c.setRequestProperty("Accept", accept)
+            for ((k, v) in headers) c.setRequestProperty(k, v)
             if (post != null) {
                 c.requestMethod = "POST"
                 c.doOutput = true
-                c.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+                c.setRequestProperty("Content-Type", contentType)
                 c.outputStream.use { it.write(post.toByteArray(Charsets.UTF_8)) }
             }
             val code = c.responseCode

@@ -45,6 +45,7 @@ SIL Open Font License 1.1. Non sono piu' nell'app: restano solo nell'archivio de
 jaudiotagger (net.jthink:jaudiotagger, LGPL-2.1): lettura e scrittura dei tag, delle copertine e dei testi nei file.
 Coil (io.coil-kt, Apache-2.0): immagini delle copertine trovate su internet.
 Testi: fonti e formati (LRCLIB, BetterLyrics per Apple Music e QQ Music, Kugou/KRC, Unison, TTML) ripresi da
-LastWave (github.com/Clash-Projects/LastWave-native, GPL-3.0); Lyrics.ovh per il solo testo.
+LastWave (github.com/Clash-Projects/LastWave-native, GPL-3.0); Lyrics.ovh per il solo testo. Fonti sperimentali YouTube Music e sottotitoli di YouTube tramite l'interfaccia
+interna di YouTube, come in LastWave (non ufficiale, può smettere di funzionare).
 Traduzione e romanizzazione: servizio pubblico di Google Traduttore, come in LastWave.
 Copertine: iTunes Search API, Deezer API, MusicBrainz e Cover Art Archive.

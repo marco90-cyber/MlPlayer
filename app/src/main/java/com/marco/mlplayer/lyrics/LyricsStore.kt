@@ -152,11 +152,16 @@ class LyricsStore(private val ctx: Context, private val settings: Settings) {
         null
     }.getOrNull()
 
-    /** Cerca in tutte le fonti online insieme (ognuna con un tempo massimo). */
-    suspend fun searchOnline(t: Track) = coroutineScope {
+    /**
+     * Cerca in tutte le fonti online insieme (ognuna con un tempo massimo).
+     * Le fonti sperimentali solo con [experimental] (dalla scelta della fonte).
+     */
+    suspend fun searchOnline(t: Track, experimental: Boolean = false) = coroutineScope {
         val q = query(t)
-        for (p in LyricsProvider.entries) if (sources[p.id] !is SourceState.Found) sources[p.id] = SourceState.Searching
-        LyricsProvider.entries.map { p ->
+        val list = LyricsProvider.entries.filter { (experimental || !it.experimental) && sources[it.id] !is SourceState.Found }
+            .filter { sources[it.id] != SourceState.None && sources[it.id] != SourceState.Searching }
+        for (p in list) sources[p.id] = SourceState.Searching
+        list.map { p ->
             async(Dispatchers.IO) {
                 val r = withTimeoutOrNull(12_000) { p.fetch(q) }
                 if (trackId == t.id) sources[p.id] = if (r != null) SourceState.Found(r) else SourceState.None
@@ -166,7 +171,7 @@ class LyricsStore(private val ctx: Context, private val settings: Settings) {
 
     /** Scelta automatica: prima il sincronizzato a parole, poi a righe, poi il solo testo. */
     private fun pickBest(exclude: String? = null): Pair<String, Lyrics>? {
-        val found = LyricsProvider.entries.mapNotNull { p ->
+        val found = LyricsProvider.entries.filter { !it.experimental }.mapNotNull { p ->
             (sources[p.id] as? SourceState.Found)?.let { p.id to it.lyrics }
         }.filter { it.first != exclude }
         val wordsOrder = listOf("apple", "kugou", "qq", "unison", "lrclib")
@@ -178,7 +183,7 @@ class LyricsStore(private val ctx: Context, private val settings: Settings) {
 
     /** "Prova un'altra fonte": la migliore escludendo quella attuale. */
     suspend fun tryAnother(t: Track) {
-        if (sources.isEmpty() || LyricsProvider.entries.any { sources[it.id] == null }) searchOnline(t)
+        if (LyricsProvider.entries.any { !it.experimental && sources[it.id] == null }) searchOnline(t)
         val current = LyricsProvider.entries.firstOrNull { it.title == lyrics?.source }?.id
         val next = pickBest(exclude = current) ?: return
         chosen = next.first
@@ -188,7 +193,7 @@ class LyricsStore(private val ctx: Context, private val settings: Settings) {
     /** Scelta di una fonte precisa ("auto" = scelta automatica). */
     suspend fun choose(t: Track, id: String) {
         if (id == AUTO) {
-            if (LyricsProvider.entries.any { sources[it.id] == null || sources[it.id] == SourceState.Idle }) searchOnline(t)
+            if (LyricsProvider.entries.any { !it.experimental && sources[it.id] == null }) searchOnline(t)
             chosen = AUTO
             pickBest()?.let { apply(t, it.second, it.first) }
             return

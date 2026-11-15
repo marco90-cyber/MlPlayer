@@ -479,7 +479,7 @@ private fun LyricsSourcesSheet(env: AppEnv, t: Track, onDismiss: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     val scope = rememberCoroutineScope()
     LaunchedEffect(t.id) {
-        if (LyricsProvider.entries.any { store.sources[it.id] == null }) store.searchOnline(t)
+        if (LyricsProvider.entries.any { store.sources[it.id] == null }) store.searchOnline(t, experimental = true)
     }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
@@ -522,7 +522,11 @@ private fun LyricsSourcesSheet(env: AppEnv, t: Track, onDismiss: () -> Unit) {
                 SourceRow(local, if (local == LyricsStore.SRC_FILE) "Testo salvato dentro il brano" else "File .lrc nella cartella del brano",
                     store.chosen == local, st.lyrics.kind.label) { scope.launch { store.choose(t, local) } }
             }
-            for (p in LyricsProvider.entries) {
+            for (p in LyricsProvider.entries.sortedBy { it.experimental }) {
+                if (p.experimental && p == LyricsProvider.entries.first { it.experimental }) Text(
+                    "Sperimentali · solo se le scegli tu", style = MaterialTheme.typography.titleSmall, color = cs.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
+                )
                 val st = store.sources[p.id]
                 val status = when (st) {
                     is SourceState.Found -> st.lyrics.kind.label
