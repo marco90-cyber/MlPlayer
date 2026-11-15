@@ -3,6 +3,8 @@ package com.marco.mlplayer.ui
 import android.net.Uri
 import android.os.Build
 import android.provider.DocumentsContract
+import com.marco.mlplayer.AppUpdate
+import com.marco.mlplayer.AppUpdateStatus
 import com.marco.mlplayer.BuildConfig
 import com.marco.mlplayer.data.Album
 import com.marco.mlplayer.data.Artist
@@ -177,18 +179,20 @@ fun AppEnv.genresScreen(): MenuScreen = MenuScreen("Generi", cache = true) {
 // ---------------------------------------------------------------- impostazioni
 
 fun AppEnv.updateScreen(): MenuScreen = MenuScreen("Aggiornamenti") {
-    val u = com.marco.mlplayer.update.Updater
-    val r = u.latest
+    val u = AppUpdateStatus
+    val r = u.release
     buildList {
-        add(MenuItem("Cerca aggiornamenti", sub = u.status, dimmed = u.checking) { u.check() })
+        add(MenuItem("Cerca aggiornamenti", sub = u.text, dimmed = u.checking) { AppUpdate.check(app) })
         add(info("Versione installata", "${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})"))
-        if (r != null) add(info("Ultima su GitHub", "${r.name} (build ${r.build})"))
-        if (r != null && u.updateAvailable) {
+        if (r != null) {
+            add(info("Ultima su GitHub", "${r.name} (build ${r.code})"))
             add(MenuItem("Scarica e installa", sub = "Download con pausa e ripresa", chevron = true) {
-                com.marco.mlplayer.AppUpdate.open(app)
+                AppUpdate.open(app)
             })
         }
-        if (r != null) add(MenuItem("Pagina della release", chevron = true) { actions?.openUrl(r.pageUrl) })
+        add(MenuItem("Pagina della release", chevron = true) {
+            actions?.openUrl(r?.pageUrl?.takeIf { it.isNotBlank() } ?: AppUpdate.RELEASES_PAGE)
+        })
     }
 }
 

@@ -16,6 +16,7 @@ import com.marco.mlplayer.audio.direct.PathStep
 import com.marco.mlplayer.audio.direct.Route
 import com.marco.mlplayer.audio.direct.SignalPath
 import com.marco.mlplayer.util.AppLog
+import com.marco.mlplayer.util.khz
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.Locale
@@ -511,8 +512,6 @@ class ProcessingAudioSink(
         C.ENCODING_PCM_FLOAT -> "float 32 bit"
         else -> "codifica $e"
     }
-
-    private fun khz(r: Int) = if (r % 1000 == 0) "${r / 1000} kHz" else String.format(Locale.ITALY, "%.1f kHz", r / 1000.0)
 
     private fun bitsOf(e: Int) = when (e) {
         C.ENCODING_PCM_16BIT -> 16

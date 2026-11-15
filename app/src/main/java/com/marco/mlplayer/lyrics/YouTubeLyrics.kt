@@ -14,6 +14,7 @@ import kotlin.math.abs
  */
 internal object YouTubeLyrics {
     private const val ORIGIN = "https://music.youtube.com"
+    private val NOT_ALNUM = Regex("[^\\p{L}\\p{N}]")
     private const val API = "$ORIGIN/youtubei/v1"
     private const val UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0"
     private const val CONSENT = "CONSENT=YES+cb.20210328-17-p0.en+FX+100; SOCS=CAISEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg"
@@ -128,8 +129,8 @@ internal object YouTubeLyrics {
         val title = Providers.cleanTitle(q.title)
         // solo risultati con il titolo giusto, poi per durata più vicina
         return hits.filter { h ->
-            val a = h.title.lowercase().replace(Regex("[^\\p{L}\\p{N}]"), "")
-            val b = title.lowercase().replace(Regex("[^\\p{L}\\p{N}]"), "")
+            val a = h.title.lowercase().replace(NOT_ALNUM, "")
+            val b = title.lowercase().replace(NOT_ALNUM, "")
             a.isNotEmpty() && b.isNotEmpty() && (a.contains(b) || b.contains(a))
         }.sortedBy { h -> if (q.durationSec > 0 && h.seconds != null) abs(h.seconds - q.durationSec) else 999 }
     }

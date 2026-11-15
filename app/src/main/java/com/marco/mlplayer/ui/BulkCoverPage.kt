@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -102,31 +101,38 @@ private object Providers2 {
     )
     private val FEAT = Regex("""(?i)\s+(?:feat\.?|ft\.?|featuring)\s+.*$""")
     private val MASHUP = Regex("""(?i)\s+(?:x|vs\.?|versus)\s+""")
+    private val TRACK_NUMBER = Regex("""^\s*\d{1,3}\s*[-._)]\s*""")
+    private val SEPARATORS = Regex("""[-_–—|/]+""")
+    private val SPACES = Regex("""\s+""")
+    private val BRACKETS = Regex("""[()\[\]]""")
+    private val PARENS = Regex("""\s*[(\[][^)\]]*[)\]]""")
+    private val ARTIST_TAIL = Regex("""(?i)\s*(?:feat\.?|ft\.?|&|,| x | vs\.? )\s*.*$""")
+    private val DASH = Regex("""\s+[-–—]\s+""")
 
     private fun base(s: String): String = s
-        .replace(Regex("""^\s*\d{1,3}\s*[-._)]\s*"""), "")   // numero di traccia: "01 - ", "1_" (non "99 Luftballons")
+        .replace(TRACK_NUMBER, "")   // numero di traccia: "01 - ", "1_" (non "99 Luftballons")
         .replace(FEAT, "")
 
-    private fun separators(s: String) = s.replace(Regex("""[-_–—|/]+"""), " ")
-    private fun spaces(s: String) = s.replace(Regex("""\s+"""), " ").trim()
+    private fun separators(s: String) = s.replace(SEPARATORS, " ")
+    private fun spaces(s: String) = s.replace(SPACES, " ").trim()
 
     /** Pulizia leggera: separatori via, testo tra parentesi tenuto (per la copertina del remix). */
-    fun light(s: String): String = spaces(separators(base(s)).replace(Regex("""[()\[\]]"""), " ")).ifBlank { s.trim() }
+    fun light(s: String): String = spaces(separators(base(s)).replace(BRACKETS, " ")).ifBlank { s.trim() }
 
     /** Pulizia completa: anche parentesi e parole di versione. */
     fun cleanTitle(s: String): String =
-        spaces(separators(base(s).replace(Regex("""\s*[(\[][^)\]]*[)\]]"""), " ")).replace(VERSION, " ")).ifBlank { light(s) }
+        spaces(separators(base(s).replace(PARENS, " ")).replace(VERSION, " ")).ifBlank { light(s) }
 
     /** Solo la prima canzone di un mashup ("A X B", "A vs B"); null se non è un mashup. */
     fun mashupFirst(s: String): String? {
-        val t = base(s).replace(Regex("""\s*[(\[][^)\]]*[)\]]"""), " ")
+        val t = base(s).replace(PARENS, " ")
         val parts = t.split(MASHUP)
         return if (parts.size > 1) cleanTitle(parts[0]).takeIf { it.isNotBlank() } else null
     }
 
     fun cleanArtist(s: String): String {
         if (s.equals("Artista sconosciuto", true) || s.equals("<unknown>", true)) return ""
-        return s.replace(Regex("""(?i)\s*(?:feat\.?|ft\.?|&|,| x | vs\.? )\s*.*$"""), "").trim()
+        return s.replace(ARTIST_TAIL, "").trim()
     }
 
     /** Artista e titolo da cercare, dal più preciso al più largo. */
@@ -134,7 +140,7 @@ private object Providers2 {
         var a = cleanArtist(artist)
         var t = title
         // "Artista - Titolo" nel titolo (file scaricati): se l'artista manca o è lo stesso, lo separo
-        val dash = Regex("""\s+[-–—]\s+""").find(t)
+        val dash = DASH.find(t)
         if (dash != null) {
             val left = t.substring(0, dash.range.first).trim()
             val right = t.substring(dash.range.last + 1).trim()
@@ -151,7 +157,10 @@ private object Providers2 {
     }
 }
 
-private fun tokens(s: String) = s.lowercase().split(Regex("[^\\p{L}\\p{N}]+")).filter { it.length > 1 }.toSet()
+private val NOT_ALNUM = Regex("[^\\p{L}\\p{N}]+")
+private val IN_BRACKETS = Regex("\\(.*?\\)|\\[.*?]")
+
+private fun tokens(s: String) = s.lowercase().split(NOT_ALNUM).filter { it.length > 1 }.toSet()
 
 /** Somiglianza tra due testi: contenuti l'uno nell'altro o con molte parole in comune. */
 private fun similar(a: String, b: String, min: Double): Boolean {
@@ -163,7 +172,7 @@ private fun similar(a: String, b: String, min: Double): Boolean {
     return ta.intersect(tb).size.toDouble() / minOf(ta.size, tb.size) >= min
 }
 
-private fun norm(s: String) = s.lowercase().replace(Regex("\\(.*?\\)|\\[.*?]"), "").replace(Regex("[^\\p{L}\\p{N}]+"), "")
+private fun norm(s: String) = s.lowercase().replace(IN_BRACKETS, "").replace(NOT_ALNUM, "")
 
 /** La copertina giusta per il brano: titolo e artista devono corrispondere, altrimenti nessuna. */
 private fun bestMatch(artist: String, title: String, results: List<CoverResult>): CoverResult? {

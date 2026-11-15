@@ -46,32 +46,40 @@ enum class LyricsProvider(
             YouTubeCaptions -> YouTubeLyrics.captions(q)
         }
     }.getOrNull()?.takeIf { !it.isEmpty }
-
-    companion object {
-        fun byId(id: String): LyricsProvider? = entries.firstOrNull { it.id == id }
-    }
 }
 
 internal object Providers {
 
     // ---------------------------------------------------------------- pulizia dei nomi
 
+    private val T_FEAT_PAREN = Regex("""(?i)\s*[(\[](?:feat\.?|ft\.?|featuring|with)[^)\]]*[)\]]""")
+    private val T_FEAT_TAIL = Regex("""(?i)\s+(?:feat\.?|ft\.?|featuring)\s+.*$""")
+    private val T_VIDEO = Regex(
+        """(?i)\s*[(\[]\s*(?:official\s*)?(?:music\s*)?(?:video|audio|visualizer|lyrics?\s*video|lyrics?|m/?v|hd|hq|4k)\s*[)\]]"""
+    )
+    private val SPACES = Regex("""\s+""")
+    private val A_FEAT_PAREN = Regex("""(?i)\s*[(\[](?:feat\.?|ft\.?)[^)\]]*[)\]]""")
+    private val A_FEAT_TAIL = Regex("""(?i)\s*(?:feat\.?|ft\.?|&|,|;| x | e )\s+.*$""")
+    private val NOT_ALNUM = Regex("[^\\p{L}\\p{N}]+")
+    private val KRC_LINE = Regex("""^\[(\d+),(\d+)](.*)$""")
+    private val KRC_SYL = Regex("""<(\d+),(\d+),\d+>([^<]*)""")
+    private val KRC_OFFSET = Regex("""^\[offset:\s*([+-]?\d+)\s*]""", RegexOption.IGNORE_CASE)
+    private val BLANK_LINES = Regex("\n{3,}")
+
     fun cleanTitle(raw: String): String {
         var out = raw
-        out = out.replace(Regex("""(?i)\s*[(\[](?:feat\.?|ft\.?|featuring|with)[^)\]]*[)\]]"""), "")
-        out = out.replace(Regex("""(?i)\s+(?:feat\.?|ft\.?|featuring)\s+.*$"""), "")
-        out = out.replace(
-            Regex("""(?i)\s*[(\[]\s*(?:official\s*)?(?:music\s*)?(?:video|audio|visualizer|lyrics?\s*video|lyrics?|m/?v|hd|hq|4k)\s*[)\]]"""), ""
-        )
-        return out.replace(Regex("""\s+"""), " ").trim().ifBlank { raw.trim() }
+        out = out.replace(T_FEAT_PAREN, "")
+        out = out.replace(T_FEAT_TAIL, "")
+        out = out.replace(T_VIDEO, "")
+        return out.replace(SPACES, " ").trim().ifBlank { raw.trim() }
     }
 
     fun cleanArtist(raw: String): String = raw
-        .replace(Regex("""(?i)\s*[(\[](?:feat\.?|ft\.?)[^)\]]*[)\]]"""), "")
-        .replace(Regex("""(?i)\s*(?:feat\.?|ft\.?|&|,|;| x | e )\s+.*$"""), "")
+        .replace(A_FEAT_PAREN, "")
+        .replace(A_FEAT_TAIL, "")
         .trim().ifBlank { raw.trim() }
 
-    private fun norm(s: String) = s.lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), "")
+    private fun norm(s: String) = s.lowercase().replace(NOT_ALNUM, "")
 
     private fun similar(a: String, b: String): Boolean {
         val x = norm(a); val y = norm(b)
@@ -210,17 +218,15 @@ internal object Providers {
     }.getOrNull()
 
     private fun parseKrc(text: String): Lyrics? {
-        val lineRe = Regex("""^\[(\d+),(\d+)](.*)$""")
-        val sylRe = Regex("""<(\d+),(\d+),\d+>([^<]*)""")
         var offset = 0L
         val lines = ArrayList<LLine>()
         for (raw in text.lines()) {
             val t = raw.trim()
-            Regex("""^\[offset:\s*([+-]?\d+)\s*]""", RegexOption.IGNORE_CASE).find(t)?.let { offset = it.groupValues[1].toLong() }
-            val m = lineRe.matchEntire(t) ?: continue
+            KRC_OFFSET.find(t)?.let { offset = it.groupValues[1].toLong() }
+            val m = KRC_LINE.matchEntire(t) ?: continue
             val start = (m.groupValues[1].toLong() + offset).coerceAtLeast(0)
             val dur = m.groupValues[2].toLong()
-            val words = sylRe.findAll(m.groupValues[3]).map { s ->
+            val words = KRC_SYL.findAll(m.groupValues[3]).map { s ->
                 val ws = start + s.groupValues[1].toLong()
                 LWord(ws, ws + s.groupValues[2].toLong(), s.groupValues[3])
             }.filter { it.text.isNotEmpty() }.toList()
@@ -263,7 +269,7 @@ internal object Providers {
         // la prima riga è spesso "Paroles de la chanson ..." (intestazione del sito)
         val clean = text.replace("\r", "").lines().let { ls ->
             if (ls.firstOrNull()?.startsWith("Paroles de la chanson") == true) ls.drop(1) else ls
-        }.joinToString("\n").replace(Regex("\n{3,}"), "\n\n").trim()
+        }.joinToString("\n").replace(BLANK_LINES, "\n\n").trim()
         return Lrc.parse(clean, "Lyrics.ovh")
     }
 }
@@ -340,7 +346,7 @@ internal object Ttml {
                     }
                     "p" -> {
                         inP = false
-                        val line = text.toString().replace(Regex("\\s+"), " ").trim()
+                        val line = text.toString().replace(SPACES, " ").trim()
                         if (line.isNotEmpty()) {
                             // gli spazi tra le parole stanno nel testo fuori dagli span: li rimetto nelle parole
                             val ws = fixSpaces(words, line)

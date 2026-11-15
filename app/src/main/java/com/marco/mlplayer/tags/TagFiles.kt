@@ -75,8 +75,6 @@ object TagFiles {
         null
     }.getOrNull()
 
-    fun canWrite(ctx: Context, uri: String): Boolean = writableUri(ctx, uri) != null
-
     private fun tempFor(ctx: Context, ext: String): File {
         val dir = File(ctx.cacheDir, "tag-edit").apply { mkdirs() }
         dir.listFiles()?.forEach { if (System.currentTimeMillis() - it.lastModified() > 60_000) it.delete() }

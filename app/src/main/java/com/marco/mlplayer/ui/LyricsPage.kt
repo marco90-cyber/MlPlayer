@@ -91,6 +91,7 @@ import com.marco.mlplayer.lyrics.LLine
 import com.marco.mlplayer.lyrics.LyricsProvider
 import com.marco.mlplayer.lyrics.LyricsStore
 import com.marco.mlplayer.lyrics.SourceState
+import com.marco.mlplayer.util.mmss
 import com.marco.mltheme.MLGroup
 import com.marco.mltheme.MLNavRow
 import com.marco.mltheme.MLSwitchRow
@@ -376,7 +377,7 @@ private fun LyricsTransport(env: AppEnv) {
             modifier = Modifier.height(28.dp)
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(fmt(pos), style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, modifier = Modifier.width(48.dp))
+            Text(mmss(pos), style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, modifier = Modifier.width(48.dp))
             Spacer(Modifier.weight(1f))
             IconButton(onClick = { env.feedback.tapScreen(); e.previous() }) { Icon(Icons.Filled.SkipPrevious, "Brano precedente") }
             FilledIconButton(onClick = { env.feedback.tapScreen(); env.playPause() }, modifier = Modifier.size(52.dp)) {
@@ -385,17 +386,13 @@ private fun LyricsTransport(env: AppEnv) {
             IconButton(onClick = { env.feedback.tapScreen(); e.next() }) { Icon(Icons.Filled.SkipNext, "Brano successivo") }
             Spacer(Modifier.weight(1f))
             Text(
-                if (dur > 0) "−" + fmt(dur - pos) else "--:--", style = MaterialTheme.typography.labelMedium,
+                if (dur > 0) "−" + mmss(dur - pos) else "--:--", style = MaterialTheme.typography.labelMedium,
                 color = cs.onSurfaceVariant, modifier = Modifier.width(48.dp)
             )
         }
     }
 }
 
-private fun fmt(ms: Long): String {
-    val s = (ms / 1000).coerceAtLeast(0)
-    return String.format(Locale.ITALY, "%d:%02d", s / 60, s % 60)
-}
 
 // ---------------------------------------------------------------- opzioni
 

@@ -90,9 +90,6 @@ class Library(private val context: Context) {
         revision++
     }
 
-    /** Il brano ha una copertina sua (scelta o tolta a mano)? */
-    fun hasOwnCover(t: Track): Boolean = File(coversDir, "t_${t.id}.jpg").exists()
-
     // ------------------------------------------------------------------ caricamento
 
     suspend fun load() = withContext(Dispatchers.IO) {
@@ -536,12 +533,6 @@ class Library(private val context: Context) {
 
     // ------------------------------------------------------------------ modifiche dall'app
 
-    /** Nuova copertina di un album nella cache dell'app (dopo averla scritta nei file). */
-    fun setCover(albumKey: String, bytes: ByteArray) {
-        saveCover(albumKey, bytes)
-        revision++
-    }
-
     /** Rilegge alcuni brani dopo la modifica dei tag (titolo, album, copertina...). */
     suspend fun refreshTracks(uris: Collection<String>) = withContext(Dispatchers.IO) {
         if (uris.isEmpty()) return@withContext
@@ -618,7 +609,7 @@ class Library(private val context: Context) {
 
     private fun leadingInt(s: String?): Int {
         if (s == null) return 0
-        return Regex("^\\d+").find(s.trim())?.value?.toIntOrNull() ?: 0
+        return LEADING_INT.find(s.trim())?.value?.toIntOrNull() ?: 0
     }
 
     private fun md5(s: String): String =
@@ -626,6 +617,7 @@ class Library(private val context: Context) {
 
     companion object {
         private const val MAX_COVER = 640
+        private val LEADING_INT = Regex("^\\d+")
 
         /** Formati principali: MP3, FLAC, WAV, OGG/Opus, AAC/M4A, MKA, AMR. */
         val AUDIO_EXT = setOf(

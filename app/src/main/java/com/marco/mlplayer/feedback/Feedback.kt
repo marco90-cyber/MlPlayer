@@ -39,9 +39,6 @@ class Feedback(context: Context, private val settings: Settings) {
         if (settings.hapticScreen) vibrate(null, VibrationEffect.createOneShot(45, VibrationEffect.DEFAULT_AMPLITUDE))
     }
 
-    /** Un passo di una manopola (equalizzatore). */
-    fun wheelStep() = tapScreen()
-
     /** Usato dalla prova nelle impostazioni. */
     fun test() = tick(strong = true)
 
@@ -73,6 +70,4 @@ class Feedback(context: Context, private val settings: Settings) {
             AppLog.d("Feedback", "Vibrazione non riuscita: ${e.message}")
         }
     }
-
-    fun release() {}
 }

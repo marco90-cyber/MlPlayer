@@ -4,15 +4,12 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -31,26 +28,21 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -58,9 +50,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.util.Locale
 import kotlin.math.roundToInt
-
-/** Colore d'accento (dalla tavolozza Material You). */
-internal val NeonGreen: Color get() = Ml.primary
 
 internal fun fmt1(v: Float): String = String.format(Locale.ITALY, "%.1f", v)
 internal fun fmt2(v: Float): String = String.format(Locale.ITALY, "%.2f", v)
@@ -71,39 +60,6 @@ internal fun fmtHz(f: Float): String =
     else "${f.roundToInt()} Hz"
 internal fun fmtHzShort(f: Float): String =
     if (f >= 1000f) { val k = f / 1000f; if (k == k.roundToInt().toFloat()) "${k.roundToInt()}K" else String.format(Locale.ITALY, "%.1fK", k) } else "${f.roundToInt()}"
-
-/** Slider orizzontale sottile, usato dalla barra del lettore. */
-@Composable
-internal fun NeonSlider(
-    value: Float,
-    onValueChange: (Float) -> Unit,
-    valueRange: ClosedFloatingPointRange<Float>,
-    modifier: Modifier = Modifier,
-) {
-    val change = rememberUpdatedState(onValueChange)
-    val lo = valueRange.start
-    val hi = valueRange.endInclusive
-    fun valueAt(x: Float, w: Float, pad: Float): Float {
-        val frac = ((x - pad) / (w - 2 * pad).coerceAtLeast(1f)).coerceIn(0f, 1f)
-        return lo + frac * (hi - lo)
-    }
-    Canvas(
-        modifier
-            .height(32.dp)
-            .pointerInput(Unit) { detectTapGestures { o -> change.value(valueAt(o.x, size.width.toFloat(), 14.dp.toPx())) } }
-            .pointerInput(Unit) {
-                detectDragGestures { c, _ -> c.consume(); change.value(valueAt(c.position.x, size.width.toFloat(), 14.dp.toPx())) }
-            }
-    ) {
-        val pad = 14.dp.toPx()
-        val cy = size.height / 2f
-        val frac = ((value - lo) / (hi - lo)).coerceIn(0f, 1f)
-        val xv = pad + frac * (size.width - 2 * pad)
-        drawLine(Ml.outlineVariant, Offset(pad, cy), Offset(size.width - pad, cy), 4.dp.toPx(), StrokeCap.Round)
-        drawLine(Ml.primary, Offset(pad, cy), Offset(xv, cy), 4.dp.toPx(), StrokeCap.Round)
-        drawCircle(Ml.primary, 8.dp.toPx(), Offset(xv, cy))
-    }
-}
 
 /** Interruttore nello stile scelto (MLTheme). */
 @Composable

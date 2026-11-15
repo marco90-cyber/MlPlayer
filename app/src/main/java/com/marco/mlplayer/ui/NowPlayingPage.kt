@@ -74,18 +74,11 @@ import androidx.compose.ui.unit.dp
 import com.marco.mlplayer.audio.direct.Route
 import com.marco.mlplayer.data.Track
 import com.marco.mlplayer.data.rememberCover
+import com.marco.mlplayer.util.khz
+import com.marco.mlplayer.util.mmss
 import kotlinx.coroutines.delay
-import java.util.Locale
 import kotlin.math.log10
 import kotlin.math.pow
-
-private fun fmtTime(ms: Long): String {
-    val s = (ms / 1000).coerceAtLeast(0)
-    return String.format(Locale.ITALY, "%d:%02d", s / 60, s % 60)
-}
-
-private fun khz(sr: Int): String =
-    if (sr % 1000 == 0) "${sr / 1000} kHz" else String.format(Locale.ITALY, "%.1f kHz", sr / 1000.0)
 
 /** Volume: cursore 0..1 con scala in dB (60 dB di escursione). */
 private fun gainToPos(g: Float): Float = if (g <= 0.001f) 0f else (1f + 20f * log10(g) / 60f).coerceIn(0f, 1f)
@@ -238,8 +231,8 @@ fun NowPlayingPage(env: AppEnv) {
                 )
                 Row(Modifier.fillMaxWidth()) {
                     val shown = if (drag >= 0f) (drag * dur).toLong() else pos
-                    Text(fmtTime(shown), style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, modifier = Modifier.weight(1f))
-                    Text(if (dur > 0) fmtTime(dur) else "--:--", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
+                    Text(mmss(shown), style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, modifier = Modifier.weight(1f))
+                    Text(if (dur > 0) mmss(dur) else "--:--", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
                 }
             }
 

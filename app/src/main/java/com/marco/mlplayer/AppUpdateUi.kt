@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -27,6 +28,39 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
+
+/** Stato del motore leggibile da Compose: le pagine che lo usano si aggiornano da sole. */
+object AppUpdateStatus {
+    var state: AppUpdate.State by mutableStateOf(AppUpdate.state)
+        private set
+
+    init {
+        AppUpdate.addListener { state = AppUpdate.state }
+    }
+
+    /** L'ultima release trovata, se è più nuova di quella installata. */
+    val release: AppUpdate.Release?
+        get() = when (val s = state) {
+            is AppUpdate.State.Available -> s.release
+            is AppUpdate.State.Downloading -> s.release
+            is AppUpdate.State.Paused -> s.release
+            is AppUpdate.State.Ready -> s.release
+            is AppUpdate.State.Failed -> s.release
+            else -> null
+        }
+
+    val checking: Boolean get() = state is AppUpdate.State.Checking
+
+    /** Riga di stato per le impostazioni. */
+    val text: String
+        get() = when (val s = state) {
+            AppUpdate.State.Idle -> "Tocca per controllare"
+            AppUpdate.State.Checking -> "Controllo in corso…"
+            is AppUpdate.State.UpToDate -> "Nessun aggiornamento (hai l'ultima)"
+            is AppUpdate.State.Failed -> if (s.release == null) "Controllo non riuscito (connessione?)" else "Disponibile: ${s.release.name}"
+            else -> release?.let { "Disponibile: ${it.name}" } ?: ""
+        }
+}
 
 /** Da mettere una volta nella radice dell'interfaccia: mostra la finestra quando si chiama [AppUpdate.open]. */
 @Composable

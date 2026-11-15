@@ -123,8 +123,6 @@ class Settings(context: Context) {
     var volume by FloatPref(sp, "volume", 1f)
 
     // Analizzatore
-    var meterNonLinear by BoolPref(sp, "meter_nonlinear", true)
-    var meterPpm by BoolPref(sp, "meter_ppm", true)
     var meterRef by IntPref(sp, "meter_ref", -12)
 
     // Debug

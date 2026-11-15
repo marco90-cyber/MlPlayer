@@ -381,12 +381,6 @@ class AudioEngine(
         if (player.mediaItemCount > 0) controls.seekToPrevious()
     }
 
-    fun seekBy(deltaMs: Long) {
-        val dur = player.duration
-        val target = (player.currentPosition + deltaMs).coerceAtLeast(0L)
-        controls.seekTo(if (dur > 0) target.coerceAtMost(dur - 100) else target)
-    }
-
     fun seekToFraction(frac: Float) {
         val dur = player.duration
         if (dur > 0) controls.seekTo((dur * frac.coerceIn(0f, 1f)).toLong())

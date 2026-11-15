@@ -261,11 +261,4 @@ class LyricsStore(private val ctx: Context, private val settings: Settings) {
         romanization = withContext(Dispatchers.IO) { LyricsTranslate.romanize(l.lines.map { it.text }) } ?: emptyList()
         extraLoading = false
     }
-
-    /** Toglie il testo salvato nell'app (il file non viene toccato). */
-    fun forget(t: Track) {
-        cacheFile(t).delete()
-        meta.edit().remove("name_${t.id}").remove("src_${t.id}").apply()
-        if (trackId == t.id) { lyrics = null; trackId = null }
-    }
 }

@@ -13,7 +13,8 @@ import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.runtime.Composable
-import com.marco.mlplayer.update.Updater
+import com.marco.mlplayer.AppUpdate
+import com.marco.mlplayer.AppUpdateStatus
 import com.marco.mltheme.MLChoiceRow
 import com.marco.mltheme.MLDependent
 import com.marco.mltheme.MLGroup
@@ -75,9 +76,9 @@ fun SettingsHome(env: AppEnv) {
         MLGroup("App") {
             MLNavRow(
                 "Aggiornamenti",
-                if (Updater.updateAvailable) "Nuova versione disponibile" else "Cerca la nuova versione su GitHub",
+                if (AppUpdateStatus.release != null) "Nuova versione disponibile" else "Cerca la nuova versione su GitHub",
                 icon = Icons.Filled.SystemUpdate
-            ) { go(env.updateScreen()); Updater.check() }
+            ) { go(env.updateScreen()); AppUpdate.check(env.app) }
             MLNavRow("Debug", "Log e informazioni tecniche", icon = Icons.Filled.BugReport) { go(env.debugScreen()) }
             MLNavRow("Informazioni", "Versione, licenze, componenti", icon = Icons.Filled.Info) { go(env.aboutScreen()) }
         }

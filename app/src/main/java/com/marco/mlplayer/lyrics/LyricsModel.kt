@@ -52,6 +52,7 @@ object Lrc {
     private val TIME = Regex("""\[(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?]""")
     private val WORD = Regex("""<(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?>""")
     private val OFFSET = Regex("""\[offset:\s*([+-]?\d+)\s*]""", RegexOption.IGNORE_CASE)
+    private val SPACES = Regex("\\s+")
     private val TAG = Regex("""^\[[a-zA-Z#]+:.*]$""")
 
     private fun ms(m: String, s: String, frac: String): Long {
@@ -92,7 +93,7 @@ object Lrc {
             val start = (r.t - offset).coerceAtLeast(0)
             val end = (next - offset).coerceAtLeast(start)
             val words = parseWords(r.body, -offset, end)
-            val clean = r.body.replace(WORD, "").replace(Regex("\\s+"), " ").trim()
+            val clean = r.body.replace(WORD, "").replace(SPACES, " ").trim()
             out += LLine(start, end, clean, words)
         }
         return Lyrics(out, source)
