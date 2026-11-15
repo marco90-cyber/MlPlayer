@@ -77,37 +77,45 @@ import kotlinx.coroutines.withContext
 
 private enum class JobState { Searching, Found, None, Saving, Done, Failed }
 
-/** Un album della cartella con la copertina trovata. */
-private class AlbumJob(val key: String, val album: String, val artist: String, val tracks: List<Track>, val hadCover: Boolean) {
+/** Un brano della cartella con la copertina trovata per lui. */
+private class AlbumJob(val track: Track, val hadCover: Boolean) {
+    val key: String get() = track.id
+    val title: String get() = track.title
+    val artist: String get() = track.artist
     var results by mutableStateOf<List<CoverResult>>(emptyList())
     var choice by mutableStateOf<CoverResult?>(null)
     var selected by mutableStateOf(false)
     var state by mutableStateOf(JobState.Searching)
-    val query: String get() = "$artist ${album.takeIf { it != "Album sconosciuto" } ?: tracks.first().title}"
+    val query: String get() = "${Providers2.cleanArtist(artist)} ${Providers2.cleanTitle(title)}"
+}
+
+/** Pulizia di titolo e artista per la ricerca (feat., "official video"...). */
+private object Providers2 {
+    fun cleanTitle(s: String) = s.replace(Regex("""(?i)\s*[(\[](?:feat\.?|ft\.?|with|official|video|audio|lyrics?)[^)\]]*[)\]]"""), "").trim().ifBlank { s }
+    fun cleanArtist(s: String) = s.replace(Regex("""(?i)\s*(?:feat\.?|ft\.?|&|,)\s+.*$"""), "").trim().ifBlank { s }
 }
 
 private fun norm(s: String) = s.lowercase().replace(Regex("\\(.*?\\)|\\[.*?]"), "").replace(Regex("[^\\p{L}\\p{N}]+"), "")
 
-/** La copertina giusta per l'album: titolo e artista devono corrispondere, altrimenti nessuna. */
+/** La copertina giusta per il brano: titolo e artista devono corrispondere, altrimenti nessuna. */
 private fun bestMatch(job: AlbumJob, results: List<CoverResult>): CoverResult? {
-    val a = norm(job.album)
-    val ar = norm(job.artist)
+    val a = norm(Providers2.cleanTitle(job.title))
+    val ar = norm(Providers2.cleanArtist(job.artist))
     fun same(x: String, y: String) = x.isNotEmpty() && y.isNotEmpty() && (x == y || x.contains(y) || y.contains(x))
     return results.firstOrNull { same(norm(it.title), a) && same(norm(it.artist), ar) }
         ?: results.firstOrNull { norm(it.title) == a && a.length >= 4 }
 }
 
-/** "Cerca le copertine": tutti gli album di una cartella, copertina trovata in automatico e scritta nei file. */
+/** "Cerca le copertine": ogni brano di una cartella, con la sua copertina trovata in automatico e scritta nel suo file. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BulkCoverPage(env: AppEnv) {
     val cs = MaterialTheme.colorScheme
     val scope = rememberCoroutineScope()
     val jobs = remember(env.bulkTracks) {
-        env.bulkTracks.groupBy { it.albumKey }.map { (key, ts) ->
-            val first = ts.first()
-            AlbumJob(key, first.album, first.albumArtist.ifBlank { first.artist }, ts, env.library.coverFile(key) != null)
-        }.sortedWith(compareBy({ it.hadCover }, { it.album.lowercase() }))
+        env.bulkTracks.distinctBy { it.uri }
+            .map { AlbumJob(it, env.library.trackCoverFile(it) != null) }
+            .sortedWith(compareBy({ it.hadCover }, { it.title.lowercase() }))
     }
     var onlyMissing by remember { mutableStateOf(true) }
     var saving by remember { mutableStateOf(false) }
@@ -120,7 +128,7 @@ fun BulkCoverPage(env: AppEnv) {
         jobs.map { j ->
             async {
                 gate.withPermit {
-                    val r = CoverSearch.search(j.query)
+                    val r = CoverSearch.searchSong(Providers2.cleanArtist(j.artist), Providers2.cleanTitle(j.title))
                     j.results = r
                     j.choice = bestMatch(j, r)
                     j.state = if (j.choice != null) JobState.Found else JobState.None
@@ -145,14 +153,13 @@ fun BulkCoverPage(env: AppEnv) {
                 j.state = JobState.Saving
                 val jpeg = withContext(Dispatchers.IO) { (Http.bytes(c.full) ?: Http.bytes(c.thumb))?.let { CoverSearch.toJpeg(it) } }
                 if (jpeg == null) { j.state = JobState.Failed; done = i + 1; continue }
-                withContext(Dispatchers.IO) { env.library.setCover(j.key, jpeg) }
-                for (t in j.tracks) {
-                    if (!TagFiles.canEdit(t.ext)) { appOnly++; continue }
-                    when (val r = withContext(Dispatchers.IO) { TagFiles.writeCover(env.app, env.settings, t, jpeg) }) {
-                        is WriteResult.Ok -> okUris += t.uri
-                        is WriteResult.NoAccess -> { needTree = r.tree; break }
-                        else -> appOnly++
-                    }
+                val t = j.track
+                withContext(Dispatchers.IO) { env.library.setTrackCover(t, jpeg) }
+                if (!TagFiles.canEdit(t.ext)) appOnly++
+                else when (val r = withContext(Dispatchers.IO) { TagFiles.writeCover(env.app, env.settings, t, jpeg) }) {
+                    is WriteResult.Ok -> okUris += t.uri
+                    is WriteResult.NoAccess -> needTree = r.tree
+                    else -> appOnly++
                 }
                 if (needTree != null) { j.state = JobState.Found; remaining += j; continue }
                 j.state = JobState.Done
@@ -171,7 +178,7 @@ fun BulkCoverPage(env: AppEnv) {
                 else env.message = "La cartella scelta non contiene questi brani: serve «${folderName(tree)}» o una che la contiene"
             } else {
                 env.message = buildString {
-                    append("Copertine applicate a ${list.count { it.state == JobState.Done }} album")
+                    append("Copertine applicate a ${list.count { it.state == JobState.Done }} brani")
                     if (appOnly > 0) append(" · $appOnly brani solo nell'app (formato non scrivibile)")
                 }
             }
@@ -202,8 +209,8 @@ fun BulkCoverPage(env: AppEnv) {
 
         com.marco.mltheme.MLGroup(modifier = Modifier.padding(top = 4.dp)) {
             com.marco.mltheme.MLSwitchRow(
-                "Solo album senza copertina",
-                "${jobs.count { !it.hadCover }} senza copertina su ${jobs.size} album",
+                "Solo brani senza copertina",
+                "${jobs.count { !it.hadCover }} senza copertina su ${jobs.size} brani",
                 onlyMissing
             ) { onlyMissing = it }
         }
@@ -214,7 +221,7 @@ fun BulkCoverPage(env: AppEnv) {
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             if (shown.isEmpty()) item {
-                Text("Tutti gli album hanno già una copertina.", color = cs.onSurfaceVariant, modifier = Modifier.padding(16.dp))
+                Text("Tutti i brani hanno già una copertina.", color = cs.onSurfaceVariant, modifier = Modifier.padding(16.dp))
             }
             items(shown, key = { it.key }) { j -> AlbumJobRow(env, j, enabled = !saving) { picking = j } }
         }
@@ -228,7 +235,7 @@ fun BulkCoverPage(env: AppEnv) {
                     when {
                         saving -> "Salvo… $done di $total"
                         searching > 0 -> "Cerco… ${jobs.size - searching} di ${jobs.size}"
-                        else -> "${selected.size} album selezionati"
+                        else -> "${selected.size} brani selezionati"
                     },
                     style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f)
                 )
@@ -253,7 +260,7 @@ private fun AlbumJobRow(env: AppEnv, j: AlbumJob, enabled: Boolean, onPick: () -
                 onCheckedChange = { j.selected = it }
             )
             // copertina attuale
-            val file = remember(j.key, env.library.revision) { env.library.coverFile(j.key) }
+            val file = remember(j.key, env.library.revision) { env.library.trackCoverFile(j.track) }
             val bmp = rememberCover(file, 160)
             Box(Modifier.size(52.dp).clip(RoundedCornerShape(12.dp)).background(cs.surfaceContainerHighest), contentAlignment = Alignment.Center) {
                 if (bmp != null) Image(bmp, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
@@ -278,12 +285,12 @@ private fun AlbumJobRow(env: AppEnv, j: AlbumJob, enabled: Boolean, onPick: () -
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(j.album, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(j.title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(j.artist, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
                     when (j.state) {
                         JobState.Searching -> "Cerco…"
-                        JobState.Found -> "${j.choice?.source} · ${j.tracks.size} brani"
+                        JobState.Found -> listOf(j.choice?.source, j.choice?.album).filter { !it.isNullOrBlank() }.joinToString(" · ")
                         JobState.None -> "Nessuna sicura · tocca per scegliere"
                         JobState.Saving -> "Salvo…"
                         JobState.Done -> "Applicata"
@@ -307,7 +314,7 @@ private fun PickCoverDialog(env: AppEnv, j: AlbumJob, scope: kotlinx.coroutines.
     var loading by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(j.album, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        title = { Text(j.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         text = {
             Column(Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
@@ -315,7 +322,11 @@ private fun PickCoverDialog(env: AppEnv, j: AlbumJob, scope: kotlinx.coroutines.
                     trailingIcon = {
                         IconButton(onClick = {
                             loading = true
-                            scope.launch { j.results = CoverSearch.search(query); loading = false }
+                            scope.launch {
+                                // prima per brano, poi come album se non trova niente
+                                j.results = CoverSearch.searchSong("", query).ifEmpty { CoverSearch.search(query) }
+                                loading = false
+                            }
                         }) { Icon(Icons.Filled.Search, "Cerca") }
                     },
                     modifier = Modifier.fillMaxWidth()
@@ -336,7 +347,7 @@ private fun PickCoverDialog(env: AppEnv, j: AlbumJob, scope: kotlinx.coroutines.
                                 r.thumb, r.title, contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(12.dp)).background(cs.surfaceContainerHighest)
                             )
-                            Text(r.title, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(r.album.ifBlank { r.title }, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(r.source, style = MaterialTheme.typography.labelSmall, color = cs.primary, maxLines = 1)
                         }
                         repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
