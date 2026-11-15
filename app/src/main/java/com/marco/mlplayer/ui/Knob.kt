@@ -80,7 +80,7 @@ fun Knob(
 
         // traccia
         drawArc(
-            color = Hifi.f.scrLine, startAngle = START, sweepAngle = SWEEP, useCenter = false,
+            color = com.marco.mlplayer.ui.eq.Ml.chip, startAngle = START, sweepAngle = SWEEP, useCenter = false,
             topLeft = topLeft, size = arcSize, style = Stroke(stroke, cap = StrokeCap.Round)
         )
         // valore
@@ -99,7 +99,7 @@ fun Knob(
         // corpo
         val bodyR = w / 2f - stroke * 1.9f
         drawCircle(
-            brush = Brush.sweepGradient(listOf(Hifi.f.knobDark, Hifi.f.knobLight, Hifi.f.knobDark, Hifi.f.knobLight, Hifi.f.knobDark), center),
+            color = com.marco.mlplayer.ui.eq.Ml.panel,
             radius = bodyR, center = center
         )
         // indicatore
@@ -107,11 +107,11 @@ fun Knob(
         val r1 = bodyR * 0.45f
         val r2 = bodyR * 0.82f
         drawCircle(
-            brush = Brush.radialGradient(listOf(Hifi.f.capLight, Hifi.f.capDark), center, bodyR),
+            color = com.marco.mlplayer.ui.eq.Ml.dialog,
             radius = bodyR * 0.72f, center = center
         )
         drawLine(
-            color = Hifi.f.knobMark,
+            color = color,
             start = Offset(center.x + (cos(ang) * r1).toFloat(), center.y + (sin(ang) * r1).toFloat()),
             end = Offset(center.x + (cos(ang) * r2).toFloat(), center.y + (sin(ang) * r2).toFloat()),
             strokeWidth = 5.dp.toPx(), cap = StrokeCap.Round

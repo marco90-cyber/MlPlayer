@@ -11,8 +11,8 @@ import com.marco.mlplayer.util.AppLog
 
 // ---------------------------------------------------------------- utilità
 
-private fun toggleItem(label: String, value: Boolean, onChange: (Boolean) -> Unit) =
-    MenuItem(label, value = if (value) "Sì" else "No") { onChange(!value) }
+private fun toggleItem(label: String, value: Boolean, sub: String? = null, onChange: (Boolean) -> Unit) =
+    MenuItem(label, sub = sub, toggle = value) { onChange(!value) }
 
 private fun info(label: String, value: String) = MenuItem(label, sub = value)
 
@@ -32,10 +32,8 @@ fun AppEnv.musicItems(): List<MenuItem> =
     if (library.tracks.isEmpty()) {
         listOf(
             MenuItem("Nessun brano", dimmed = true),
-            MenuItem("Aggiungi cartella musicale", chevron = true) {
-                tab = Tab.Settings
-                settingsNav.popToRoot()
-                settingsNav.push(libraryScreen())
+            MenuItem("Aggiungi cartella musicale", sub = "Scegli dove si trova la tua musica", chevron = true) {
+                actions?.pickFolder()
             },
         )
     } else {
@@ -66,7 +64,7 @@ private fun treeId(uri: String): String = DocumentsContract.getTreeDocumentId(Ur
 fun AppEnv.openFolders() {
     val roots = settings.folders
     when {
-        roots.isEmpty() -> { tab = Tab.Settings; settingsNav.push(libraryScreen()) }
+        roots.isEmpty() -> actions?.pickFolder()
         roots.size == 1 -> libraryNav.push(folderBrowseScreen(treeId(roots[0]), folderName(roots[0])))
         else -> libraryNav.push(foldersRootScreen())
     }
@@ -171,30 +169,6 @@ fun AppEnv.genresScreen(): MenuScreen = MenuScreen("Generi", cache = true) {
 
 // ---------------------------------------------------------------- impostazioni
 
-fun AppEnv.settingsItems(): List<MenuItem> = listOf(
-    MenuItem("Aspetto", value = Hifi.finish.name, chevron = true) { settingsNav.push(AppearanceScreen) },
-    // stile degli interruttori dell'equalizzatore (MLTheme, come in MLauncher)
-    MenuItem(
-        "Stile interruttori",
-        value = com.marco.mltheme.SWITCH_STYLES.firstOrNull { it.first == com.marco.mltheme.MLThemeSettings.get(app).switchStyle }?.second,
-    ) {
-        val ml = com.marco.mltheme.MLThemeSettings.get(app)
-        val keys = com.marco.mltheme.SWITCH_STYLES.map { it.first }
-        ml.switchStyle = keys[(keys.indexOf(ml.switchStyle) + 1) % keys.size]
-    },
-    MenuItem("Suoni e tatto", chevron = true) { settingsNav.push(soundScreen()) },
-    MenuItem("Libreria", chevron = true) { settingsNav.push(libraryScreen()) },
-    MenuItem("Equalizzatore", chevron = true) { tab = Tab.Eq },
-    MenuItem("Riproduzione", chevron = true) { settingsNav.push(playbackScreen()) },
-    MenuItem(
-        "Aggiornamenti",
-        value = if (com.marco.mlplayer.update.Updater.updateAvailable) "Nuova versione" else null,
-        chevron = true
-    ) { settingsNav.push(updateScreen()); com.marco.mlplayer.update.Updater.check() },
-    MenuItem("Debug", chevron = true) { settingsNav.push(debugScreen()) },
-    MenuItem("Informazioni", chevron = true) { settingsNav.push(aboutScreen()) },
-)
-
 fun AppEnv.updateScreen(): MenuScreen = MenuScreen("Aggiornamenti") {
     val u = com.marco.mlplayer.update.Updater
     val r = u.latest
@@ -209,26 +183,6 @@ fun AppEnv.updateScreen(): MenuScreen = MenuScreen("Aggiornamenti") {
         }
         if (r != null) add(MenuItem("Pagina della release", chevron = true) { actions?.openUrl(r.pageUrl) })
     }
-}
-
-fun AppEnv.soundScreen(): MenuScreen = MenuScreen("Suoni e tatto") {
-    val strengths = listOf("Leggera", "Media", "Forte")
-    val volumes = listOf("Basso", "Medio", "Alto")
-    listOf(
-        toggleItem("Vibrazione schermo", settings.hapticScreen) { settings.hapticScreen = it },
-        toggleItem("Suono schermo", settings.soundScreen) { settings.soundScreen = it },
-        toggleItem("Vibrazione manopole", settings.hapticWheel) { settings.hapticWheel = it },
-        toggleItem("Suono manopole", settings.soundWheel) { settings.soundWheel = it },
-        MenuItem("Intensità vibrazione", value = strengths[settings.hapticStrength.coerceIn(0, 2)]) {
-            settings.hapticStrength = (settings.hapticStrength + 1) % 3
-            feedback.test()
-        },
-        MenuItem("Volume del click", value = volumes[settings.clickVolume.coerceIn(0, 2)]) {
-            settings.clickVolume = (settings.clickVolume + 1) % 3
-            feedback.test()
-        },
-        MenuItem("Prova feedback") { feedback.test() },
-    )
 }
 
 fun AppEnv.libraryScreen(): MenuScreen = MenuScreen("Libreria") {
@@ -276,15 +230,14 @@ fun AppEnv.folderActionScreen(uri: String): MenuScreen = MenuScreen(folderName(u
 fun AppEnv.playbackScreen(): MenuScreen = MenuScreen("Riproduzione") {
     val repeatLabels = listOf("No", "Tutto", "Brano")
     listOf(
-        MenuItem("Mescola", value = if (engine.shuffleOn) "Sì" else "No") { engine.toggleShuffle() },
+        toggleItem("Mescola", engine.shuffleOn) { engine.toggleShuffle() },
         MenuItem("Ripeti", value = repeatLabels[engine.repeatMode.coerceIn(0, 2)]) { engine.cycleRepeat() },
-        MenuItem(
-            "Uscita adattiva",
-            value = if (settings.adaptiveOutput) "Sì" else "No",
+        toggleItem(
+            "Uscita adattiva", settings.adaptiveOutput,
             sub = "Bit e kHz si adattano a DAC o casse · dal prossimo brano"
-        ) { engine.setAdaptiveOutput(!settings.adaptiveOutput) },
+        ) { engine.setAdaptiveOutput(it) },
         MenuItem("Equalizzatore", chevron = true) { tab = Tab.Eq },
-        MenuItem("Uscita audio", chevron = true) { tab = Tab.Output },
+        MenuItem("Uscita audio", chevron = true) { overlay = Overlay.Output },
         MenuItem(
             "Percorso del segnale", chevron = true,
             sub = "USB esclusiva, uscita diretta, bit-perfect",
@@ -305,7 +258,7 @@ fun AppEnv.debugScreen(): MenuScreen = MenuScreen("Debug") {
         },
         MenuItem("Informazioni audio", chevron = true) { settingsNav.push(audioInfoScreen()) },
         MenuItem("Informazioni libreria", chevron = true) { settingsNav.push(libraryInfoScreen()) },
-        MenuItem("Prova vibrazione e suono") { feedback.test() },
+        MenuItem("Prova vibrazione") { feedback.test() },
     )
 }
 
@@ -340,7 +293,7 @@ fun AppEnv.libraryInfoScreen(): MenuScreen = MenuScreen("Info libreria") {
 
 fun AppEnv.aboutScreen(): MenuScreen = MenuScreen("Informazioni") {
     listOf(
-        info("MLPlayer", "Lettore musicale Hi-Res in stile hi-fi"),
+        info("MLPlayer", "Lettore musicale Hi-Res in Material Design 3"),
         info("Versione", BuildConfig.VERSION_NAME),
         info("Build", "${BuildConfig.VERSION_CODE}"),
         info("Sviluppatore", "Marco"),
@@ -353,7 +306,7 @@ fun AppEnv.aboutScreen(): MenuScreen = MenuScreen("Informazioni") {
         info("Licenza", "GPL-3.0 o successiva"),
         info("Componenti", "AndroidX Media3, Jetpack Compose, Oboe (Apache 2.0); libsoxr (LGPL); FFmpeg decoder Jellyfin (GPL-3.0)"),
         info("AutoEQ", "Profili delle cuffie di AutoEQ, Jaakko Pasanen (MIT)"),
-        info("Caveat e DotGothic16", "Caratteri dei temi Cassetta e Alluminio (SIL Open Font License 1.1)"),
-        info("Da LastWave", "Uscite USB esclusiva, diretta e AAudio, bit-perfect, percorso del segnale, layout Copertina (GPL-3.0); driver USB decent-player (MIT)"),
+        info("MLTheme", "Tema Material You condiviso delle MLapps"),
+        info("Da LastWave", "Uscite USB esclusiva, diretta e AAudio, bit-perfect, percorso del segnale (GPL-3.0); driver USB decent-player (MIT)"),
     )
 }

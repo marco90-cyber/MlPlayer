@@ -10,17 +10,15 @@ import com.marco.mlplayer.data.Track
 import com.marco.mlplayer.util.AppLog
 import kotlinx.coroutines.launch
 
-/** Schermate a tutto schermo sopra al frontale. */
-enum class Overlay { None, Log }
+/** Pagine a tutto schermo sopra alle sezioni (si chiudono con la freccia o il tasto indietro). */
+enum class Overlay { None, Log, Analyzer, Output }
 
-/** Sezioni della barra in basso. */
+/** Sezioni della barra di navigazione in basso. */
 enum class Tab(val label: String) {
-    Library("LIBRERIA"),
-    NowPlaying("IN RIPROD."),
-    Eq("EQ"),
-    Analyzer("ANALIZZ."),
-    Output("USCITA"),
-    Settings("IMPOST."),
+    Library("Libreria"),
+    NowPlaying("Lettore"),
+    Eq("Equalizzatore"),
+    Settings("Impostazioni"),
 }
 
 /** Azioni che richiedono l'Activity (selettore cartelle, browser, condivisione). */
@@ -38,6 +36,8 @@ class MenuItem(
     val track: Track? = null,
     val albumKey: String? = null,
     val dimmed: Boolean = false,
+    /** Non null = la voce è un interruttore acceso/spento. */
+    val toggle: Boolean? = null,
     val onClick: () -> Unit = {},
 )
 
@@ -49,8 +49,11 @@ class MenuScreen(
     val build: AppEnv.() -> List<MenuItem>,
 ) : Screen()
 
-/** Impostazioni › Aspetto: scelta della finitura con anteprima. */
+/** Impostazioni › Aspetto: tema, colori, VU meter. */
 object AppearanceScreen : Screen()
+
+/** Impostazioni (pagina principale, con i gruppi di MLTheme). */
+object SettingsHomeScreen : Screen()
 
 /** Percorso del segnale e opzioni d'uscita (USB esclusiva, diretta, bit-perfect). */
 object SignalPathScreen : Screen()
@@ -82,7 +85,7 @@ class Nav(root: Screen) {
     }
 }
 
-/** Stato globale dell'interfaccia: sezione attiva, navigazione dei menu e overlay. */
+/** Stato globale dell'interfaccia: sezione attiva, navigazione dei menu e pagine sopra. */
 class AppEnv(val app: MLPlayerApp) {
     val settings get() = app.settings
     val library get() = app.library
@@ -97,11 +100,14 @@ class AppEnv(val app: MLPlayerApp) {
     var tab by mutableStateOf(Tab.NowPlaying)
     var overlay by mutableStateOf(Overlay.None)
 
-    /** Pannello "Percorso del segnale" aperto (come in LastWave, dalla riga della qualità). */
+    /** Pannello "Percorso del segnale" aperto (dalle informazioni sulla qualità nel lettore). */
     var showSignalPath by mutableStateOf(false)
 
+    /** Coda di riproduzione aperta (foglio dal basso nel lettore). */
+    var showQueue by mutableStateOf(false)
+
     val libraryNav = Nav(MenuScreen("Libreria") { musicItems() })
-    val settingsNav = Nav(MenuScreen("Impostazioni") { settingsItems() })
+    val settingsNav = Nav(SettingsHomeScreen)
 
     /** Banda dell'analizzatore selezionata (0..30, 17 = 1 kHz) e richiesta di azzeramento picchi. */
     var analyzerBand by mutableStateOf(17)
@@ -120,8 +126,12 @@ class AppEnv(val app: MLPlayerApp) {
         tab = t
     }
 
-    /** Tasto indietro: chiude l'overlay, poi risale nei menu, poi torna a "In riproduzione". */
+    /** Tasto indietro: chiude coda e pagine sopra, poi risale nei menu, poi torna al lettore. */
     fun back(): Boolean {
+        if (showQueue) {
+            showQueue = false
+            return true
+        }
         if (overlay != Overlay.None) {
             overlay = Overlay.None
             return true
@@ -141,6 +151,7 @@ class AppEnv(val app: MLPlayerApp) {
     }
 
     fun openNowPlaying() {
+        overlay = Overlay.None
         tab = Tab.NowPlaying
     }
 

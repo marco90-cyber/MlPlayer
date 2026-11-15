@@ -1,28 +1,31 @@
 # MLPlayer
 
-Lettore musicale per Android con grafica da **impianto hi-fi Hi-Res**: frontale metallico, VU meter a lancetta, display VFD e manopole vere. Tutta l'interfaccia è in italiano. Il motore audio, la libreria, l'equalizzatore e l'analizzatore vengono da MLPod / MLEqualizer.
+Lettore musicale per Android Hi-Res in **Material Design 3**, con i colori presi dallo sfondo del telefono o dalla copertina del brano. Tutta l'interfaccia è in italiano. Il motore audio, la libreria, l'equalizzatore e l'analizzatore vengono da MLPod / MLEqualizer.
 
 ## Caratteristiche
 
-- Solo in verticale. Sezioni nella barra in basso: Libreria · In riproduzione · EQ · Analizzatore · Uscita · Impostazioni
-- **Sei finiture** (Impostazioni → Aspetto, con anteprima): Nero e blu, Champagne, Argento, Noce, Bianco, Retrò 97 (ispirata ai lettori per PC di fine anni '90)
-- Opzioni di aspetto: luce degli strumenti, velocità delle lancette VU (300 ms / 120 ms), bagliore del display, texture spazzolata, copertine nei menu, schermo sempre acceso
-- **In riproduzione**: due VU meter (RMS con balistica VU) con spia di picco; riferimento selezionabile con i tasti −/+ o in Aspetto: 0 VU = −12, −14, −18, −20 dBFS oppure scala in dBFS di picco come il PPM, scritto sul quadrante, display con copertina, brano, formato, bit/kHz e barra a segmenti (tocca o trascina per spostarti), tasti di trasporto, manopole **Bassi / Volume / Alti** che si girano col dito con tic tattile e sonoro
-- Spie del frontale: HI-RES, DSP, DAC (uscita USB), BYPASS
+- Solo in verticale. Barra di navigazione Material 3: Libreria · Lettore · Equalizzatore · Impostazioni; nelle altre sezioni il brano in riproduzione resta sopra la barra
+- **Tema** con [MLTheme](https://github.com/marco90-cyber/MLTheme): chiaro, scuro o automatico, colori dal sistema, dallo sfondo o fissi, stile degli interruttori; **colori dalla copertina** del brano (con passaggio morbido)
+- **Lettore**: copertina grande, titolo, avanzamento, comandi, volume dell'app, **VU meter** (sinistro e destro, RMS con balistica VU, spia di picco; si tolgono in Impostazioni → Aspetto) con riferimento 0 VU = −12, −14, −18, −20 dBFS o dBFS di picco; qualità della sorgente e dispositivo d'uscita in due chip che aprono il percorso del segnale; coda dei brani
+- Dal lettore si aprono anche **Analizzatore** e **Uscita audio**
 - Libreria: Artisti, Album, Brani, Generi, Cartelle, Mescola brani, Mescola album; copertine incorporate o `cover.jpg` / `folder.jpg`
 - Formati: MP3, FLAC, WAV, OGG, Opus, AAC, M4A, MKA, AMR (M4A/ALAC dipende dal telefono)
-- **Equalizzatore** di [MLEqualizer](https://github.com/marco90-cyber/Mleq): Parametrico (16 filtri), AutoEQ (oltre 8800 cuffie incluse) e grafico a 3, 5, 7, 10, 15 o 31 bande nella pagina, preamp, toni come Poweramp (frequenza e Q), Analog Bass, Hi-Res Air, Clarity, Surround+ e stereo, DBFB, loudness legata al volume, ReplayGain (tag o misura R128), headroom automatico, filtro anti-DC, saturazione morbida e limiter true-peak, volume digitale (DVC, come Poweramp: i rinforzi non abbassano il suono) e dissolvenze anti-click su play e pausa; curva fissabile in alto; preset AutoEQ/Poweramp e **analizzatore** (picchi, RMS, PPM, goniometro, 1/3 d'ottava) con i colori della finitura
+- **Equalizzatore** di [MLEqualizer](https://github.com/marco90-cyber/Mleq): Parametrico (16 filtri), AutoEQ (oltre 8800 cuffie incluse) e grafico a 3, 5, 7, 10, 15 o 31 bande nella pagina, preamp, toni come Poweramp (frequenza e Q), Analog Bass, Hi-Res Air, Clarity, Surround+ e stereo, DBFB, loudness legata al volume, ReplayGain (tag o misura R128), headroom automatico, filtro anti-DC, saturazione morbida e limiter true-peak, volume digitale (DVC, come Poweramp: i rinforzi non abbassano il suono) e dissolvenze anti-click su play e pausa; curva fissabile in alto; preset AutoEQ/Poweramp e **analizzatore** (picchi, RMS, PPM, goniometro, 1/3 d'ottava) nei colori del tema
 - Uscita adattiva al DAC (bit e kHz) con ricampionatore soxr
 - **Uscite che saltano il mixer di Android** (da LastWave): **USB esclusiva** con driver diretto al DAC (volume hardware del DAC se c'è), **uscita diretta** (AudioTrack 24 bit alla frequenza del brano su un'uscita DIRECT verificata, oppure **AAudio esclusiva MMAP** con Oboe) e **Bit-perfect** (niente DSP, niente ricampionamento; con il mixer serve Android 14 e un DAC USB compatibile)
 - **Percorso del segnale**: Sorgente → DSP → Volume → Uscita → Dispositivo, con le verifiche reali (clock letto dal DAC, uscita DIRECT, MMAP) e il pulsante "Controlla"
 - **Decoder FFmpeg** (Jellyfin) per i formati che il telefono non decodifica (ALAC, AC-3, E-AC-3, DTS, TrueHD in M4A/MKA/WebM)
-- **Due layout del lettore** (Impostazioni → Aspetto): Hi-Fi oppure **Copertina** a tutto schermo (ispirato a LastWave)
 - **Aggiornamenti** (Impostazioni → Aggiornamenti): controlla l'ultima release su GitHub e scarica l'APK
 - Riproduzione in background con notifica e controlli multimediali
 
 ## Impostazioni
 
-Aspetto · Suoni e tatto · Libreria (selezione cartelle, scansione) · Equalizzatore · Riproduzione · Aggiornamenti · Debug (log, esportazione, informazioni audio/libreria) · Informazioni
+Aspetto (tema, colori, VU meter) · Audio (equalizzatore, riproduzione, percorso del segnale, uscita, analizzatore) · Libreria (cartelle, scansione) · Tatto · Aggiornamenti · Debug (log, esportazione, informazioni audio/libreria) · Informazioni
+
+## Vecchia grafica Hi-Fi
+
+Le finiture e i layout Hi-Fi, Copertina, Alluminio, Cassetta e Giradischi sono conservati in
+[`archivio/skin-hifi`](archivio/skin-hifi) e nel branch `archivio-skin-hifi` (l'ultima versione completa con le skin).
 
 ## Firma dell'APK
 

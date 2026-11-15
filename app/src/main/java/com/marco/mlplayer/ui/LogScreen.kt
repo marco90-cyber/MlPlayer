@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -43,7 +44,6 @@ fun LogScreen(env: AppEnv) {
     Column(
         Modifier
             .fillMaxSize()
-            .background(Hifi.f.scrBg)
             .safeDrawingPadding()
     ) {
         Row(
@@ -54,19 +54,20 @@ fun LogScreen(env: AppEnv) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = { env.overlay = Overlay.None }) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Indietro", tint = Color.White)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Indietro")
             }
             Text(
-                "Log (${lines.size})", color = Color.White, fontSize = 18.sp,
-                fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f)
+                "Log (${lines.size})", style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.weight(1f)
             )
             IconButton(onClick = { env.actions?.shareLog() }) {
-                Icon(Icons.Filled.Share, contentDescription = "Condividi", tint = Color.White)
+                Icon(Icons.Filled.Share, contentDescription = "Condividi")
             }
             IconButton(onClick = { AppLog.clear() }) {
-                Icon(Icons.Filled.DeleteSweep, contentDescription = "Cancella", tint = Color.White)
+                Icon(Icons.Filled.DeleteSweep, contentDescription = "Cancella")
             }
         }
+        val cs = MaterialTheme.colorScheme
         LazyColumn(
             state = listState,
             modifier = Modifier
@@ -76,10 +77,10 @@ fun LogScreen(env: AppEnv) {
         ) {
             itemsIndexed(lines) { _, line ->
                 val color = when {
-                    line.contains(" E/") -> Color(0xFFFF6B6B)
-                    line.contains(" W/") -> Color(0xFFFFC857)
-                    line.contains(" D/") -> Hifi.f.scrDim
-                    else -> Color(0xFFDCE1EC)
+                    line.contains(" E/") -> cs.error
+                    line.contains(" W/") -> cs.tertiary
+                    line.contains(" D/") -> cs.onSurfaceVariant
+                    else -> cs.onSurface
                 }
                 Text(line, color = color, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
             }

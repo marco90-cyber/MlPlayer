@@ -1,26 +1,24 @@
 package com.marco.mlplayer.ui
 
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import com.marco.mlplayer.ui.eq.EqPanel
 import com.marco.mlplayer.ui.eq.Ml
-import com.marco.mlplayer.ui.eq.MlPalette
 
-/** Colori dell'equalizzatore presi dalla finitura scelta (schermo del frontale). */
-private fun hifiPalette(): MlPalette {
-    val f = Hifi.f
-    return MlPalette(
-        background = f.scrBg, panel = f.scrPanel, chip = f.scrChip, dialog = f.scrPanel,
-        primary = f.vfd, onPrimary = Color.Black, primaryContainer = lerp(f.scrChip, f.vfd, 0.25f), tertiary = f.accent2,
-        text = Color.White, textDim = f.scrDim, textFaint = lerp(f.scrDim, f.scrBg, 0.35f),
-        outline = f.scrDim, outlineVariant = f.scrLine,
-    )
-}
-
-/** Equalizzatore dentro il pannello "EQUALIZZATORE" del frontale. */
+/** Sezione Equalizzatore: il pannello di MLEqualizer con i colori del tema Material 3. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EqualizerScreen(env: AppEnv) {
-    Ml.palette = hifiPalette()
-    EqPanel(env, "MLPlayer")
+    val cs = MaterialTheme.colorScheme
+    Ml.palette = Ml.fromScheme(cs, amoled = false)
+    EqPanel(env, "MLPlayer") {
+        TopAppBar(
+            title = { Text("Equalizzatore") },
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = cs.surface),
+        )
+    }
 }

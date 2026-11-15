@@ -22,6 +22,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -36,9 +41,6 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import java.util.Locale
 
-private val Bg: Color get() = Hifi.f.scrBg
-private val Panel: Color get() = Hifi.f.scrPanel
-private val Dim: Color get() = Hifi.f.scrDim
 
 private data class OutDevice(val title: String, val details: List<String>)
 
@@ -83,6 +85,24 @@ private fun readDevices(ctx: Context): List<OutDevice> {
     }
 }
 
+/** Pagina "Uscita audio" con la barra in alto. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun OutputPage(env: AppEnv) {
+    Column(Modifier.fillMaxSize()) {
+        TopAppBar(
+            title = { Text("Uscita audio") },
+            navigationIcon = {
+                IconButton(onClick = { env.feedback.tapScreen(); env.overlay = Overlay.None }) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Indietro")
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
+        )
+        Column(Modifier.weight(1f).navigationBarsPadding()) { OutputScreen(env) }
+    }
+}
+
 @Composable
 fun OutputScreen(env: AppEnv) {
     val ctx = LocalContext.current
@@ -105,17 +125,15 @@ fun OutputScreen(env: AppEnv) {
     Column(
         Modifier
             .fillMaxSize()
-            .background(Bg)
     ) {
-        Spacer(Modifier.height(8.dp))
         Column(
             Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Section("Percorso") { SignalPathView(env) }
+            Section("Percorso del segnale") { SignalPathView(env, showOptions = false) }
             Section("Uscita attiva") {
                 val om = engine.outputMonitor
                 KV(
@@ -173,8 +191,8 @@ fun OutputScreen(env: AppEnv) {
             Section("Uscite audio presenti (dichiarate da Android)") {
                 if (devices.isEmpty()) Line("Nessuna uscita rilevata")
                 for (d in devices) {
-                    Text(d.title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                    for (x in d.details) Text(x, color = Dim, fontSize = 12.sp)
+                    Text(d.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                    for (x in d.details) Text(x, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(4.dp))
                 }
             }
@@ -183,7 +201,7 @@ fun OutputScreen(env: AppEnv) {
                 Line(
                     "L'audio passa dal mixer di Android: il sistema può ricampionare o convertire il formato " +
                         "prima dell'uscita, quindi non posso dichiarare l'uscita bit-perfect. " +
-                        "La modalità USB DAC diretta non è implementata."
+                        "Per saltarlo usa USB esclusiva o Uscita diretta nel Percorso del segnale."
                 )
                 Line(
                     "I valori sopra (punti 2-5) sono quelli realmente comunicati da Media3 e dal motore DSP; " +
@@ -203,12 +221,12 @@ private fun Section(title: String, content: @Composable () -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(Panel)
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(5.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(title, color = Hifi.f.vfd, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
         content()
     }
 }
@@ -216,12 +234,12 @@ private fun Section(title: String, content: @Composable () -> Unit) {
 @Composable
 private fun KV(label: String, value: String) {
     Column {
-        Text(label, color = Dim, fontSize = 11.sp)
-        Text(value, color = Color.White, fontSize = 14.sp)
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
 @Composable
 private fun Line(text: String) {
-    Text(text, color = Color(0xFFDDE1EA), fontSize = 13.sp)
+    Text(text, style = MaterialTheme.typography.bodyMedium)
 }

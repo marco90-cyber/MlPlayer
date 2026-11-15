@@ -60,43 +60,29 @@ class Settings(context: Context) {
     private val sp: SharedPreferences =
         context.applicationContext.getSharedPreferences("mlplayer_settings", Context.MODE_PRIVATE)
 
-    // Aspetto
-    /** Finitura del frontale (vedi Finishes). */
-    var finishId by StringPref(sp, "finish", "nero")
-    /** Layout del lettore: 0 = Hi-Fi (VU, display, manopole), 1 = Copertina a tutto schermo */
-    var playerLayout by IntPref(sp, "player_layout", 0)
-    /** Varianti dei layout a tema: Alluminio scuro (Grafite), colore della Cassetta, Giradischi bianco. */
-    var aluDark by BoolPref(sp, "alu_dark", false)
-    var cassetteColor by IntPref(sp, "cassette_color", 0)
-    var turntableWhite by BoolPref(sp, "turntable_white", false)
-    /** Luce degli strumenti: 0 = bassa, 1 = media, 2 = alta */
-    var meterLight by IntPref(sp, "meter_light", 2)
+    // Aspetto (tema chiaro/scuro, colori e interruttori sono in MLThemeSettings)
+    /** Colori dell'app presi dalla copertina del brano in riproduzione. */
+    var coverColors by BoolPref(sp, "cover_colors", true)
+    /** VU meter nel lettore. */
+    var showVu by BoolPref(sp, "show_vu", true)
     /** Lancette dei VU: 0 = morbide (300 ms), 1 = rapide (120 ms) */
     var vuSpeed by IntPref(sp, "vu_speed", 0)
     /** Riferimento dei VU: livello RMS in dBFS che vale 0 VU (-20/-18/-14/-12), 0 = scala in dBFS di picco. */
     var vuRef by IntPref(sp, "vu_ref", -14)
-    var displayGlow by BoolPref(sp, "display_glow", true)
 
     /** Curva dell'equalizzatore fissata in alto: scorrendo diventa una striscia compatta. */
     var curvePinned by BoolPref(sp, "curve_pinned", true)
-    var brushedTexture by BoolPref(sp, "brushed_texture", true)
     var coverInMenu by BoolPref(sp, "cover_in_menu", true)
     var keepScreenOn by BoolPref(sp, "keep_screen_on", false)
 
     /** Sensibilità dell'analizzatore (offset di visualizzazione in dB, -24..+24) */
     var analyzerSens by IntPref(sp, "analyzer_sens", 0)
 
-    // Suoni e tatto
+    // Tatto
     var hapticScreen by BoolPref(sp, "haptic_screen", true)
-    var soundScreen by BoolPref(sp, "sound_screen", true)
-    var hapticWheel by BoolPref(sp, "haptic_wheel", true)
-    var soundWheel by BoolPref(sp, "sound_wheel", true)
 
     /** 0 = leggera, 1 = media, 2 = forte */
     var hapticStrength by IntPref(sp, "haptic_strength", 1)
-
-    /** 0 = basso, 1 = medio, 2 = alto */
-    var clickVolume by IntPref(sp, "click_volume", 1)
 
     // Libreria
     var scanOnStart by BoolPref(sp, "scan_on_start", true)

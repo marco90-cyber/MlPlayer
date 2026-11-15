@@ -16,7 +16,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.marco.mlplayer.ui.Actions
-import com.marco.mlplayer.ui.HifiApp
+import com.marco.mlplayer.ui.PlayerApp
 import com.marco.mlplayer.util.AppLog
 
 class MainActivity : ComponentActivity(), Actions {
@@ -70,10 +70,7 @@ class MainActivity : ComponentActivity(), Actions {
         }
 
         setContent {
-            HifiApp(env)
-            androidx.compose.material3.MaterialTheme(colorScheme = androidx.compose.material3.darkColorScheme()) {
-                AppUpdateHost()
-            }
+            PlayerApp(env)
         }
     }
 

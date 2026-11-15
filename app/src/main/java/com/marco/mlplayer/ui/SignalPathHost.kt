@@ -119,13 +119,7 @@ fun SignalPathHost(env: AppEnv, onDismiss: () -> Unit) {
     val report = evaluateSignalPath(input)
     val needsPermission = usbDev != null && outputs.usbWanted && !outputs.usbDacReady()
 
-    val scheme = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) dynamicLightColorScheme(context)
-    else lightColorScheme(
-        primary = Color(0xFF9A4049), onPrimary = Color.White,
-        primaryContainer = Color(0xFFFFD9DB), onPrimaryContainer = Color(0xFF3F0010),
-        tertiary = Color(0xFF7A5733),
-    )
-    MaterialTheme(colorScheme = scheme) {
+    run {
         SignalPathDialog(
             report = report,
             needsUsbPermission = needsPermission,

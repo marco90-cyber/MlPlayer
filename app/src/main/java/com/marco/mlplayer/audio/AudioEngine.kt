@@ -81,6 +81,9 @@ class AudioEngine(
     }
 
     private var queue: List<Track> = emptyList()
+
+    /** Brani della coda attuale, nell'ordine in cui sono stati messi (per la schermata Coda). */
+    val queueTracks: List<Track> get() = queue
     private var consecutiveErrors = 0
     private var runtimeSampleRate = 0
     private var runtimePcmBits = 0
@@ -326,6 +329,13 @@ class AudioEngine(
         player.play()
         updateCurrent()
         AppLog.i("Audio", "Coda di ${tracks.size} brani, avvio da #$start (${tracks[start].title})")
+    }
+
+    /** Salta a un brano della coda. */
+    fun playAt(index: Int) {
+        if (index !in 0 until player.mediaItemCount) return
+        controls.seekTo(index, 0L)
+        if (!player.isPlaying) controls.play()
     }
 
     fun togglePlayPause() {
