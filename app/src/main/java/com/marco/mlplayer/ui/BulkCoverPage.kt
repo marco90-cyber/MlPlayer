@@ -86,21 +86,68 @@ private class AlbumJob(val track: Track, val hadCover: Boolean) {
     var choice by mutableStateOf<CoverResult?>(null)
     var selected by mutableStateOf(false)
     var state by mutableStateOf(JobState.Searching)
-    val query: String get() = "${Providers2.cleanArtist(artist)} ${Providers2.cleanTitle(title)}".trim()
+    val query: String get() = Providers2.variants(artist, title).getOrNull(1)?.let { "${it.first} ${it.second}".trim() }
+        ?: "${Providers2.cleanArtist(artist)} ${Providers2.cleanTitle(title)}".trim()
 }
 
-/** Pulizia di titolo e artista per la ricerca (numeri di traccia, "_", parentesi, feat.). */
+/**
+ * Pulizia di titolo e artista SOLO per la ricerca delle copertine: i tag del file non cambiano.
+ * Separatori ("-", "_", "|", "/"), numero di traccia, parentesi, feat. e parole di versione (remix, edit...).
+ */
 private object Providers2 {
-    fun cleanTitle(s: String): String = s
-        .replace(Regex("""^\s*\d{1,3}\s*[-._)]\s*"""), "")          // numero di traccia: "01 - ", "1_" (non "99 Luftballons")
-        .replace('_', ' ')
-        .replace(Regex("""\s*[(\[][^)\]]*[)\]]"""), "")               // tutto tra parentesi: (Testo/Lyrics), (Remix)...
-        .replace(Regex("""(?i)\s+(?:feat\.?|ft\.?)\s+.*$"""), "")
-        .replace(Regex("""\s+"""), " ").trim().ifBlank { s.trim() }
+    private val VERSION = Regex(
+        """(?i)\b(?:radio\s+edit|extended(?:\s+(?:mix|version|edit))?|club\s+mix|original\s+mix|sped\s+up|slowed(?:\s+(?:down|reverb))?|""" +
+            """remix(?:ed)?|mix|edit|version|versione|mashup|mash\s+up|bootleg|rework|remaster(?:ed)?|live|cover|""" +
+            """official|video|audio|lyrics?|testo|visualizer|hd|hq|4k)\b"""
+    )
+    private val FEAT = Regex("""(?i)\s+(?:feat\.?|ft\.?|featuring)\s+.*$""")
+    private val MASHUP = Regex("""(?i)\s+(?:x|vs\.?|versus)\s+""")
+
+    private fun base(s: String): String = s
+        .replace(Regex("""^\s*\d{1,3}\s*[-._)]\s*"""), "")   // numero di traccia: "01 - ", "1_" (non "99 Luftballons")
+        .replace(FEAT, "")
+
+    private fun separators(s: String) = s.replace(Regex("""[-_–—|/]+"""), " ")
+    private fun spaces(s: String) = s.replace(Regex("""\s+"""), " ").trim()
+
+    /** Pulizia leggera: separatori via, testo tra parentesi tenuto (per la copertina del remix). */
+    fun light(s: String): String = spaces(separators(base(s)).replace(Regex("""[()\[\]]"""), " ")).ifBlank { s.trim() }
+
+    /** Pulizia completa: anche parentesi e parole di versione. */
+    fun cleanTitle(s: String): String =
+        spaces(separators(base(s).replace(Regex("""\s*[(\[][^)\]]*[)\]]"""), " ")).replace(VERSION, " ")).ifBlank { light(s) }
+
+    /** Solo la prima canzone di un mashup ("A X B", "A vs B"); null se non è un mashup. */
+    fun mashupFirst(s: String): String? {
+        val t = base(s).replace(Regex("""\s*[(\[][^)\]]*[)\]]"""), " ")
+        val parts = t.split(MASHUP)
+        return if (parts.size > 1) cleanTitle(parts[0]).takeIf { it.isNotBlank() } else null
+    }
 
     fun cleanArtist(s: String): String {
         if (s.equals("Artista sconosciuto", true) || s.equals("<unknown>", true)) return ""
         return s.replace(Regex("""(?i)\s*(?:feat\.?|ft\.?|&|,| x | vs\.? )\s*.*$"""), "").trim()
+    }
+
+    /** Artista e titolo da cercare, dal più preciso al più largo. */
+    fun variants(artist: String, title: String): List<Pair<String, String>> {
+        var a = cleanArtist(artist)
+        var t = title
+        // "Artista - Titolo" nel titolo (file scaricati): se l'artista manca o è lo stesso, lo separo
+        val dash = Regex("""\s+[-–—]\s+""").find(t)
+        if (dash != null) {
+            val left = t.substring(0, dash.range.first).trim()
+            val right = t.substring(dash.range.last + 1).trim()
+            if (left.any { it.isLetter() } && right.isNotEmpty() && (a.isEmpty() || similar(left, a, 0.6))) {
+                if (a.isEmpty()) a = cleanArtist(left)
+                t = right
+            }
+        }
+        return listOfNotNull(
+            a to light(t),
+            a to cleanTitle(t),
+            mashupFirst(t)?.let { a to it },
+        ).filter { it.second.isNotBlank() }.distinct()
     }
 }
 
@@ -119,11 +166,10 @@ private fun similar(a: String, b: String, min: Double): Boolean {
 private fun norm(s: String) = s.lowercase().replace(Regex("\\(.*?\\)|\\[.*?]"), "").replace(Regex("[^\\p{L}\\p{N}]+"), "")
 
 /** La copertina giusta per il brano: titolo e artista devono corrispondere, altrimenti nessuna. */
-private fun bestMatch(job: AlbumJob, results: List<CoverResult>): CoverResult? {
-    val t = Providers2.cleanTitle(job.title)
-    val ar = Providers2.cleanArtist(job.artist)
+private fun bestMatch(artist: String, title: String, results: List<CoverResult>): CoverResult? {
+    val t = Providers2.cleanTitle(title)
     fun titleOk(r: CoverResult) = similar(Providers2.cleanTitle(r.title), t, 0.7)
-    fun artistOk(r: CoverResult) = ar.isEmpty() || similar(r.artist, ar, 0.5) || similar(r.artist, job.artist, 0.5)
+    fun artistOk(r: CoverResult) = artist.isEmpty() || similar(r.artist, artist, 0.5)
     return results.firstOrNull { titleOk(it) && artistOk(it) }
 }
 
@@ -149,9 +195,17 @@ fun BulkCoverPage(env: AppEnv) {
         jobs.map { j ->
             async {
                 gate.withPermit {
-                    val r = CoverSearch.searchSong(Providers2.cleanArtist(j.artist), Providers2.cleanTitle(j.title))
-                    j.results = r
-                    j.choice = bestMatch(j, r)
+                    // ricerca a gradini: titolo quasi intero, poi senza remix/parentesi, poi la prima canzone del mashup
+                    var all = emptyList<CoverResult>()
+                    var found: CoverResult? = null
+                    for ((a, t) in Providers2.variants(j.artist, j.title)) {
+                        val r = CoverSearch.searchSong(a, t)
+                        all = (all + r).distinctBy { it.full }
+                        found = bestMatch(a, t, r)
+                        if (found != null) break
+                    }
+                    j.results = all
+                    j.choice = found
                     j.state = if (j.choice != null) JobState.Found else JobState.None
                     j.selected = j.choice != null
                 }
