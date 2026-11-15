@@ -68,6 +68,16 @@ class Library(private val context: Context) {
 
     fun coverCount(): Int = coversDir.list()?.size ?: 0
 
+    /** Copertina di un brano: la sua, se ne ha una propria, altrimenti quella dell'album. */
+    fun trackCoverFile(t: Track): File? =
+        File(coversDir, "t_${t.id}.jpg").takeIf { it.exists() } ?: coverFile(t.albumKey)
+
+    /** Copertina propria di un solo brano (scelta dalla pagina Copertina del brano). */
+    fun setTrackCover(t: Track, bytes: ByteArray) {
+        saveCover("t_${t.id}", bytes)
+        revision++
+    }
+
     // ------------------------------------------------------------------ caricamento
 
     suspend fun load() = withContext(Dispatchers.IO) {
@@ -521,7 +531,9 @@ class Library(private val context: Context) {
     suspend fun refreshTracks(uris: Collection<String>) = withContext(Dispatchers.IO) {
         if (uris.isEmpty()) return@withContext
         val list = tracks.toMutableList()
+        // le copertine già in cache restano: la copertina di un album non va sostituita da quella di un suo brano
         val coverKeys: MutableSet<String> = ConcurrentHashMap.newKeySet()
+        coversDir.list()?.forEach { coverKeys.add(it.removeSuffix(".jpg")) }
         for (u in uris) {
             val i = list.indexOfFirst { it.uri == u }
             if (i < 0) continue

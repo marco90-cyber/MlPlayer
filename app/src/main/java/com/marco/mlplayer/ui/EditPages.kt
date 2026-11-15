@@ -130,7 +130,7 @@ private fun MenuEntry(icon: androidx.compose.ui.graphics.vector.ImageVector, tit
 @Composable
 private fun CoverBox(env: AppEnv, t: Track, sizeDp: Int) {
     val cs = MaterialTheme.colorScheme
-    val file = remember(t.albumKey, env.library.revision) { env.library.coverFile(t.albumKey) }
+    val file = remember(t.id, env.library.revision) { env.library.trackCoverFile(t) }
     val bmp = rememberCover(file, sizeDp * 3)
     Box(
         Modifier.size(sizeDp.dp).clip(RoundedCornerShape((sizeDp / 5).dp)).background(cs.primaryContainer),
@@ -169,10 +169,6 @@ fun CoverPage(env: AppEnv) {
         Column(Modifier.fillMaxSize()) { PageBar(env, "Copertina") }
         return
     }
-    val albumTracks = remember(t.albumKey, env.library.revision) {
-        env.library.albums.firstOrNull { it.key == t.albumKey }?.tracks ?: listOf(t)
-    }
-    var wholeAlbum by remember { mutableStateOf(true) }
     var query by remember(t.id) {
         mutableStateOf(listOf(t.albumArtist.ifBlank { t.artist }, t.album.takeIf { it != "Album sconosciuto" } ?: t.title).joinToString(" "))
     }
@@ -189,9 +185,9 @@ fun CoverPage(env: AppEnv) {
             env.message = "Immagine non valida"
             return
         }
-        val targets = if (wholeAlbum) albumTracks else listOf(t)
-        env.library.setCover(t.albumKey, jpeg)
-        env.writeFiles(targets, "Copertina", { tr -> TagFiles.writeCover(env.app, env.settings, tr, jpeg) }, done = { saving = false })
+        // solo questo brano: per un album intero c'è "Cerca le copertine" nella cartella
+        env.library.setTrackCover(t, jpeg)
+        env.writeFiles(listOf(t), "Copertina", { tr -> TagFiles.writeCover(env.app, env.settings, tr, jpeg) }, done = { saving = false })
     }
 
     fun search() {
@@ -224,19 +220,12 @@ fun CoverPage(env: AppEnv) {
                 CoverBox(env, t, 120)
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(t.album, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    Text(t.albumArtist.ifBlank { t.artist }, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(t.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(listOf(t.artist, t.album).filter { it.isNotBlank() }.joinToString(" — "), color = cs.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     if (!TagFiles.canEdit(t.ext)) Text(
                         "Formato ${t.ext.uppercase()}: la copertina resta solo nell'app",
                         style = MaterialTheme.typography.bodySmall, color = cs.error
                     )
-                }
-            }
-            if (albumTracks.size > 1) {
-                com.marco.mltheme.MLGroup {
-                    com.marco.mltheme.MLSwitchRow(
-                        "Applica a tutto l'album", "${albumTracks.size} brani", wholeAlbum
-                    ) { wholeAlbum = it }
                 }
             }
             OutlinedButton(
@@ -290,10 +279,7 @@ fun CoverPage(env: AppEnv) {
                     modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(16.dp))
                 )
                 Text("${c.title} — ${c.artist}", style = MaterialTheme.typography.bodyMedium)
-                Text(
-                    if (wholeAlbum && albumTracks.size > 1) "Verrà scritta in ${albumTracks.size} brani." else "Verrà scritta nel brano.",
-                    style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant
-                )
+                Text("Verrà scritta solo in questo brano.", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
             }
         },
         confirmButton = {

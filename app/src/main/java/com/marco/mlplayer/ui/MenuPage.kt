@@ -189,7 +189,9 @@ private fun LibraryRow(env: AppEnv, item: MenuItem) {
 private fun CoverThumb(env: AppEnv, item: MenuItem) {
     val cs = MaterialTheme.colorScheme
     val key = item.albumKey ?: item.track?.albumKey
-    val file = remember(key, env.library.revision) { env.library.coverFile(key) }
+    val file = remember(key, item.track?.id, env.library.revision) {
+        item.track?.let { env.library.trackCoverFile(it) } ?: env.library.coverFile(key)
+    }
     val bmp = rememberCover(file, 160)
     Box(
         Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)).background(cs.surfaceContainerHighest),

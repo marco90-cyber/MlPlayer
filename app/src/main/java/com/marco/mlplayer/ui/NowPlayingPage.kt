@@ -166,7 +166,7 @@ fun NowPlayingPage(env: AppEnv) {
             // copertina: il quadrato più grande che entra nello spazio rimasto
             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 val side = if (maxWidth < maxHeight) maxWidth else maxHeight
-                val file = remember(t?.albumKey, env.library.revision) { t?.let { env.library.coverFile(it.albumKey) } }
+                val file = remember(t?.id, env.library.revision) { t?.let { env.library.trackCoverFile(it) } }
                 val cover = rememberCover(file, 720)
                 Box(
                     Modifier.size(side).clip(RoundedCornerShape(28.dp)).background(cs.primaryContainer),

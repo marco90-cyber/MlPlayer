@@ -299,7 +299,7 @@ class AudioEngine(
     // ------------------------------------------------------------------ comandi
 
     private fun toMediaItem(t: Track): MediaItem {
-        val cover = library.coverFile(t.albumKey)
+        val cover = library.trackCoverFile(t)
         val meta = MediaMetadata.Builder()
             .setTitle(t.title)
             .setArtist(t.artist)

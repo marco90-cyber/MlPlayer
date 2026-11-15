@@ -212,7 +212,7 @@ private fun MiniPlayer(env: AppEnv) {
             delay(500)
         }
     }
-    val file = remember(t.albumKey, env.library.revision) { env.library.coverFile(t.albumKey) }
+    val file = remember(t.id, env.library.revision) { env.library.trackCoverFile(t) }
     val cover = rememberCover(file, 160)
     Column(
         Modifier

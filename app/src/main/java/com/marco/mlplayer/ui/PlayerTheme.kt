@@ -36,7 +36,7 @@ fun PlayerTheme(env: AppEnv, content: @Composable () -> Unit) {
     val ml = MLThemeSettings.get(ctx)
     val track = env.engine.currentTrack
     val useCover = env.settings.coverColors
-    val coverFile = if (useCover && track != null) env.library.coverFile(track.albumKey) else null
+    val coverFile = if (useCover && track != null) env.library.trackCoverFile(track) else null
 
     val seed by produceState<Int?>(null, coverFile?.path, env.library.revision) {
         value = if (coverFile == null) null else withContext(Dispatchers.IO) {
