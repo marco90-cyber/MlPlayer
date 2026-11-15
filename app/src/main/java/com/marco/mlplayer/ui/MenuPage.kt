@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
@@ -103,6 +104,7 @@ private fun rootIcon(label: String): ImageVector? = when (label) {
     "Mescola brani", "Mescola album", "Mescola cartella" -> Icons.Filled.Shuffle
     "Riproduci cartella" -> Icons.Filled.PlayArrow
     "Aggiungi cartella musicale" -> Icons.Filled.CreateNewFolder
+    "Cerca le copertine" -> Icons.Filled.Image
     else -> null
 }
 

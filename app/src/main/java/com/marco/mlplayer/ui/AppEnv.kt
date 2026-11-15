@@ -11,7 +11,7 @@ import com.marco.mlplayer.util.AppLog
 import kotlinx.coroutines.launch
 
 /** Pagine a tutto schermo sopra alle sezioni (si chiudono con la freccia o il tasto indietro). */
-enum class Overlay { None, Log, Analyzer, Output, Lyrics, Cover, Tags }
+enum class Overlay { None, Log, Analyzer, Output, Lyrics, Cover, Tags, BulkCovers }
 
 /** Sezioni della barra di navigazione in basso. */
 enum class Tab(val label: String) {
@@ -114,6 +114,10 @@ class AppEnv(val app: MLPlayerApp) {
 
     /** Brano su cui lavorano le pagine Copertina e Modifica tag. */
     var editTrack by mutableStateOf<Track?>(null)
+
+    /** Brani e nome della cartella per "Cerca le copertine". */
+    var bulkTracks by mutableStateOf<List<Track>>(emptyList())
+    var bulkTitle by mutableStateOf("")
 
     /** Messaggio breve in basso (Snackbar). */
     var message by mutableStateOf<String?>(null)

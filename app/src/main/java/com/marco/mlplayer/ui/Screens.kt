@@ -108,6 +108,14 @@ fun AppEnv.folderBrowseScreen(path: String, title: String): MenuScreen =
                     openNowPlaying()
                 }
             )
+            val albums = ordered.map { it.albumKey }.distinct().size
+            items.add(
+                MenuItem("Cerca le copertine", sub = "$albums album in questa cartella") {
+                    bulkTracks = ordered
+                    bulkTitle = title
+                    overlay = Overlay.BulkCovers
+                }
+            )
         }
         for (sub in subs) {
             val subPath = prefix + sub
