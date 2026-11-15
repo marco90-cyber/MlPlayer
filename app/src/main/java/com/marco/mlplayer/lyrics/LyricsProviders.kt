@@ -276,6 +276,8 @@ internal object Providers {
 
 /** TTML (Apple Music): righe <p begin end> con le parole in <span begin end>. */
 internal object Ttml {
+    private val SPACES = Regex("\\s+")
+
     private fun time(s: String?): Long {
         if (s.isNullOrBlank()) return -1
         val v = s.trim()
