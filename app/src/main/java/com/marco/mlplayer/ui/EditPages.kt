@@ -191,7 +191,7 @@ fun CoverPage(env: AppEnv) {
         }
         val targets = if (wholeAlbum) albumTracks else listOf(t)
         env.library.setCover(t.albumKey, jpeg)
-        env.writeFiles(targets, "Copertina", { tr -> TagFiles.writeCover(env.app, env.settings, tr, jpeg) }) { saving = false }
+        env.writeFiles(targets, "Copertina", { tr -> TagFiles.writeCover(env.app, env.settings, tr, jpeg) }, done = { saving = false })
     }
 
     fun search() {
@@ -361,10 +361,10 @@ fun TagEditorPage(env: AppEnv) {
                 onClick = {
                     saving = true
                     val d = data
-                    env.writeFiles(listOf(t), "Tag", { tr -> TagFiles.writeTags(env.app, env.settings, tr, d) }) {
+                    env.writeFiles(listOf(t), "Tag", { tr -> TagFiles.writeTags(env.app, env.settings, tr, d) }, done = {
                         saving = false
                         env.overlay = Overlay.None
-                    }
+                    })
                 }
             ) { Text("Salva") }
         }
