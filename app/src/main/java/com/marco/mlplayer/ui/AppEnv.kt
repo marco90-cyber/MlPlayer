@@ -11,7 +11,7 @@ import com.marco.mlplayer.util.AppLog
 import kotlinx.coroutines.launch
 
 /** Pagine a tutto schermo sopra alle sezioni (si chiudono con la freccia o il tasto indietro). */
-enum class Overlay { None, Log, Analyzer, Output }
+enum class Overlay { None, Log, Analyzer, Output, Lyrics, Cover, Tags }
 
 /** Sezioni della barra di navigazione in basso. */
 enum class Tab(val label: String) {
@@ -26,6 +26,9 @@ interface Actions {
     fun pickFolder()
     fun openUrl(url: String)
     fun shareLog()
+    /** Chiede di nuovo la cartella [tree] con il permesso di scrittura (per tag, copertine e testi). */
+    fun requestWriteAccess(tree: String)
+    fun shareText(text: String, subject: String)
 }
 
 class MenuItem(
@@ -106,6 +109,79 @@ class AppEnv(val app: MLPlayerApp) {
     /** Coda di riproduzione aperta (foglio dal basso nel lettore). */
     var showQueue by mutableStateOf(false)
 
+    /** Menu ⋮ del brano (Testo, Copertina, Modifica tag). */
+    var showTrackMenu by mutableStateOf(false)
+
+    /** Brano su cui lavorano le pagine Copertina e Modifica tag. */
+    var editTrack by mutableStateOf<Track?>(null)
+
+    /** Messaggio breve in basso (Snackbar). */
+    var message by mutableStateOf<String?>(null)
+
+    /** Testi dei brani (cache, file, fonti online). */
+    val lyrics by lazy { com.marco.mlplayer.lyrics.LyricsStore(app, app.settings) }
+
+    /** Cosa rifare quando l'utente concede il permesso di scrittura. */
+    private var afterWriteGrant: (() -> Unit)? = null
+
+    fun requestWrite(tree: String, then: () -> Unit) {
+        afterWriteGrant = then
+        message = "Per scrivere nei file scegli di nuovo la cartella della musica e consenti l'accesso"
+        actions?.requestWriteAccess(tree)
+    }
+
+    fun onWriteGranted() {
+        val f = afterWriteGrant
+        afterWriteGrant = null
+        lyrics.needsAccess = null
+        f?.invoke()
+    }
+
+    fun openPage(o: Overlay, t: Track? = engine.currentTrack) {
+        showTrackMenu = false
+        editTrack = t
+        overlay = o
+    }
+
+    /**
+     * Scrive nei file dei [tracks] con [op], poi rilegge la libreria e aggiorna la coda.
+     * Se manca il permesso chiede la cartella e, una volta concesso, ricomincia da capo.
+     */
+    fun writeFiles(tracks: List<Track>, what: String, op: (Track) -> com.marco.mlplayer.tags.WriteResult, done: () -> Unit = {}) {
+        app.appScope.launch {
+            val ok = ArrayList<String>()
+            var failed = 0
+            var stop = false
+            for (t in tracks) {
+                val r = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { op(t) }
+                when (r) {
+                    is com.marco.mlplayer.tags.WriteResult.Ok -> ok += t.uri
+                    is com.marco.mlplayer.tags.WriteResult.NoAccess -> {
+                        requestWrite(r.tree) { writeFiles(tracks.filter { it.uri !in ok }, what, op, done) }
+                        stop = true
+                    }
+                    is com.marco.mlplayer.tags.WriteResult.Unsupported -> failed++
+                    is com.marco.mlplayer.tags.WriteResult.Failed -> failed++
+                }
+                if (stop) break
+            }
+            if (ok.isNotEmpty()) {
+                library.refreshTracks(ok)
+                val byUri = library.tracks.filter { it.uri in ok }.associateBy { it.uri }
+                engine.replaceTracks(byUri, ok.toSet())
+                editTrack = editTrack?.let { byUri[it.uri] ?: it }
+            }
+            if (!stop) {
+                message = when {
+                    failed == 0 -> "$what: salvato"
+                    ok.isEmpty() -> "$what: non salvato (formato non supportato o file non scrivibile)"
+                    else -> "$what: salvato in ${ok.size} brani, ${failed} non riusciti"
+                }
+                done()
+            }
+        }
+    }
+
     val libraryNav = Nav(MenuScreen("Libreria") { musicItems() })
     val settingsNav = Nav(SettingsHomeScreen)
 
@@ -130,6 +206,10 @@ class AppEnv(val app: MLPlayerApp) {
     fun back(): Boolean {
         if (showQueue) {
             showQueue = false
+            return true
+        }
+        if (showTrackMenu) {
+            showTrackMenu = false
             return true
         }
         if (overlay != Overlay.None) {

@@ -96,6 +96,10 @@ dependencies {
     implementation("androidx.documentfile:documentfile:1.0.1")
     // colore principale della copertina (tema dai colori del brano)
     implementation("androidx.palette:palette-ktx:1.0.0")
+    // lettura e scrittura dei tag nei file (LGPL)
+    implementation("net.jthink:jaudiotagger:3.0.1")
+    // immagini da internet (ricerca copertine)
+    implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
     val media3 = "1.5.1"

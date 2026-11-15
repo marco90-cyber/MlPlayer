@@ -331,6 +331,32 @@ class AudioEngine(
         AppLog.i("Audio", "Coda di ${tracks.size} brani, avvio da #$start (${tracks[start].title})")
     }
 
+    /**
+     * Dopo una modifica dei tag: aggiorna i brani della coda (titolo, copertina nella notifica).
+     * Se il file del brano in riproduzione è stato riscritto, lo riapre alla stessa posizione.
+     */
+    fun replaceTracks(updated: Map<String, Track>, rewritten: Set<String>) {
+        if (queue.isEmpty()) return
+        val reload = currentTrack?.uri?.let { it in rewritten } == true
+        queue = queue.map { updated[it.uri] ?: it }
+        for (i in 0 until minOf(queue.size, player.mediaItemCount)) {
+            val t = updated[queue[i].uri] ?: continue
+            if (i != player.currentMediaItemIndex || !reload) runCatching { player.replaceMediaItem(i, toMediaItem(t)) }
+        }
+        if (reload) {
+            val idx = player.currentMediaItemIndex
+            val pos = player.currentPosition
+            val play = player.playWhenReady
+            val t = queue.getOrNull(idx)
+            if (t != null) runCatching { player.replaceMediaItem(idx, toMediaItem(t)) }
+            player.stop()
+            player.prepare()
+            player.seekTo(idx, pos)
+            player.playWhenReady = play
+        }
+        updateCurrent()
+    }
+
     /** Salta a un brano della coda. */
     fun playAt(index: Int) {
         if (index !in 0 until player.mediaItemCount) return

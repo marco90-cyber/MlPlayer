@@ -307,6 +307,8 @@ fun AppEnv.aboutScreen(): MenuScreen = MenuScreen("Informazioni") {
         info("Componenti", "AndroidX Media3, Jetpack Compose, Oboe (Apache 2.0); libsoxr (LGPL); FFmpeg decoder Jellyfin (GPL-3.0)"),
         info("AutoEQ", "Profili delle cuffie di AutoEQ, Jaakko Pasanen (MIT)"),
         info("MLTheme", "Tema Material You condiviso delle MLapps"),
+        info("Testi", "LRCLIB, BetterLyrics (Apple Music, QQ Music), Kugou, Unison, Lyrics.ovh; fonti e formati ripresi da LastWave (GPL-3.0)"),
+        info("Tag e copertine", "jaudiotagger (LGPL-2.1); copertine da iTunes, Deezer, Cover Art Archive; Coil (Apache 2.0)"),
         info("Da LastWave", "Uscite USB esclusiva, diretta e AAudio, bit-perfect, percorso del segnale (GPL-3.0); driver USB decent-player (MIT)"),
     )
 }

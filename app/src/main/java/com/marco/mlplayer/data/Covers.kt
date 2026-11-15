@@ -18,7 +18,8 @@ object Covers {
         override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount
     }
 
-    private fun keyOf(file: File, maxPx: Int) = "${file.path}@$maxPx"
+    // la data di modifica nella chiave: una copertina cambiata non resta vecchia in memoria
+    private fun keyOf(file: File, maxPx: Int) = "${file.path}@${file.lastModified()}@$maxPx"
 
     fun cached(file: File, maxPx: Int): Bitmap? = cache.get(keyOf(file, maxPx))
 
@@ -45,7 +46,7 @@ object Covers {
 @Composable
 fun rememberCover(file: File?, maxPx: Int): ImageBitmap? {
     val initial = if (file != null) Covers.cached(file, maxPx)?.asImageBitmap() else null
-    val state = produceState<ImageBitmap?>(initialValue = initial, file?.path, maxPx) {
+    val state = produceState<ImageBitmap?>(initialValue = initial, file?.path, file?.lastModified(), maxPx) {
         value = if (file == null) {
             null
         } else {

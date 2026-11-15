@@ -47,6 +47,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -95,6 +98,11 @@ fun PlayerApp(env: AppEnv) {
             }
         }
 
+        // i testi trovati per un brano si scrivono nel suo file quando non sta più suonando
+        LaunchedEffect(env.engine.currentTrack?.uri) {
+            runCatching { env.lyrics.flushPending(env.engine.currentTrack?.uri) }
+        }
+
         LaunchedEffect(env.settings.keepScreenOn) {
             val w = activity?.window ?: return@LaunchedEffect
             if (env.settings.keepScreenOn) w.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -131,7 +139,7 @@ fun PlayerApp(env: AppEnv) {
                 }
 
                 // pagine sopra alle sezioni
-                for (o in listOf(Overlay.Analyzer, Overlay.Output, Overlay.Log)) {
+                for (o in listOf(Overlay.Analyzer, Overlay.Output, Overlay.Log, Overlay.Lyrics, Overlay.Cover, Overlay.Tags)) {
                     AnimatedVisibility(
                         visible = env.overlay == o,
                         enter = slideInVertically(tween(260)) { it / 6 } + fadeIn(tween(200)),
@@ -142,6 +150,9 @@ fun PlayerApp(env: AppEnv) {
                                 Overlay.Analyzer -> AnalyzerPage(env)
                                 Overlay.Output -> OutputPage(env)
                                 Overlay.Log -> LogScreen(env)
+                                Overlay.Lyrics -> LyricsPage(env)
+                                Overlay.Cover -> CoverPage(env)
+                                Overlay.Tags -> TagEditorPage(env)
                                 Overlay.None -> {}
                             }
                         }
@@ -149,6 +160,16 @@ fun PlayerApp(env: AppEnv) {
                 }
 
                 if (env.showQueue) QueueSheet(env)
+                if (env.showTrackMenu && env.engine.currentTrack != null) TrackMenuSheet(env)
+
+                // messaggi brevi (salvataggi, permessi)
+                val snack = remember { SnackbarHostState() }
+                LaunchedEffect(env.message) {
+                    val m = env.message ?: return@LaunchedEffect
+                    snack.showSnackbar(m)
+                    if (env.message == m) env.message = null
+                }
+                SnackbarHost(snack, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 88.dp))
                 if (env.showSignalPath) SignalPathHost(env) { env.showSignalPath = false }
                 AppUpdateHost()
             }

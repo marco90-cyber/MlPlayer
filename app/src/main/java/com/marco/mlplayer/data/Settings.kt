@@ -78,6 +78,14 @@ class Settings(context: Context) {
     /** Sensibilità dell'analizzatore (offset di visualizzazione in dB, -24..+24) */
     var analyzerSens by IntPref(sp, "analyzer_sens", 0)
 
+    // Testi
+    /** Dimensione del testo nella pagina Testo (0,7 .. 1,6). */
+    var lyricsScale by FloatPref(sp, "lyrics_scale", 1f)
+    var lyricsTranslate by BoolPref(sp, "lyrics_translate", false)
+    var lyricsRomanize by BoolPref(sp, "lyrics_romanize", false)
+    /** Salva i testi trovati anche dentro i file (tag LYRICS). */
+    var lyricsSaveToFile by BoolPref(sp, "lyrics_save_file", true)
+
     // Tatto
     var hapticScreen by BoolPref(sp, "haptic_screen", true)
 

@@ -30,6 +30,8 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Lyrics
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -174,6 +176,21 @@ fun NowPlayingPage(env: AppEnv) {
                         Image(cover, contentDescription = "Copertina", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                     } else {
                         Icon(Icons.Filled.MusicNote, null, tint = cs.onPrimaryContainer, modifier = Modifier.size(side / 3))
+                    }
+                    // Testo e menu del brano, in basso a destra sulla copertina
+                    if (t != null) Row(
+                        Modifier.align(Alignment.BottomEnd).padding(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val chip = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = cs.surfaceContainerHighest.copy(alpha = 0.85f), contentColor = cs.onSurface
+                        )
+                        FilledTonalIconButton(onClick = { fb.tapScreen(); env.openPage(Overlay.Lyrics) }, colors = chip) {
+                            Icon(Icons.Filled.Lyrics, contentDescription = "Testo")
+                        }
+                        FilledTonalIconButton(onClick = { fb.tapScreen(); env.showTrackMenu = true }, colors = chip) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = "Altre azioni del brano")
+                        }
                     }
                 }
             }

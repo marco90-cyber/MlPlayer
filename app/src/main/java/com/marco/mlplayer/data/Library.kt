@@ -509,6 +509,52 @@ class Library(private val context: Context) {
         tmp.renameTo(File(coversDir, "$key.jpg"))
     }
 
+    // ------------------------------------------------------------------ modifiche dall'app
+
+    /** Nuova copertina di un album nella cache dell'app (dopo averla scritta nei file). */
+    fun setCover(albumKey: String, bytes: ByteArray) {
+        saveCover(albumKey, bytes)
+        revision++
+    }
+
+    /** Rilegge alcuni brani dopo la modifica dei tag (titolo, album, copertina...). */
+    suspend fun refreshTracks(uris: Collection<String>) = withContext(Dispatchers.IO) {
+        if (uris.isEmpty()) return@withContext
+        val list = tracks.toMutableList()
+        val coverKeys: MutableSet<String> = ConcurrentHashMap.newKeySet()
+        for (u in uris) {
+            val i = list.indexOfFirst { it.uri == u }
+            if (i < 0) continue
+            try {
+                val uri = Uri.parse(u)
+                var name = list[i].title + "." + list[i].ext
+                var size = list[i].size
+                var modified = System.currentTimeMillis()
+                context.contentResolver.query(
+                    uri,
+                    arrayOf(
+                        DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                        DocumentsContract.Document.COLUMN_SIZE,
+                        DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+                    ), null, null, null
+                )?.use { c ->
+                    if (c.moveToFirst()) {
+                        c.getString(0)?.let { name = it }
+                        if (!c.isNull(1)) size = c.getLong(1)
+                        if (!c.isNull(2)) modified = c.getLong(2)
+                    }
+                }
+                val docId = DocumentsContract.getDocumentId(uri)
+                val f = AudioFile(uri, name, list[i].ext, modified, size, docId.substringBeforeLast('/', docId))
+                list[i] = readTrack(f, emptyMap(), coverKeys)
+            } catch (e: Throwable) {
+                AppLog.w("Libreria", "Brano non riletto: $u", e)
+            }
+        }
+        applyTracks(list)
+        saveDb(list)
+    }
+
     // ------------------------------------------------------------------ cache JSON
 
     private fun saveDb(list: List<Track>) {

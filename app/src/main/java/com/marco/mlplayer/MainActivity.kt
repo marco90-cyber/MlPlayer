@@ -24,15 +24,49 @@ class MainActivity : ComponentActivity(), Actions {
     private val folderPicker =
         registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
             if (uri == null) return@registerForActivityResult
-            try {
-                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (e: Exception) {
-                AppLog.w("Libreria", "Permesso persistente non ottenuto", e)
-            }
+            takeAccess(uri)
             val app = application as MLPlayerApp
             app.settings.addFolder(uri.toString())
             AppLog.i("Libreria", "Cartella aggiunta: $uri")
             app.env.startScan(false)
+        }
+
+    /** Permesso persistente di lettura e, se il sistema lo concede, anche di scrittura (tag, copertine, testi). */
+    private fun takeAccess(uri: Uri): Boolean {
+        val rw = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        return try {
+            contentResolver.takePersistableUriPermission(uri, rw)
+            true
+        } catch (e: Exception) {
+            try {
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (e2: Exception) {
+                AppLog.w("Libreria", "Permesso persistente non ottenuto", e2)
+            }
+            false
+        }
+    }
+
+    /** Cartella richiesta di nuovo per avere il permesso di scrittura. */
+    private val writePicker =
+        registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
+            val app = application as MLPlayerApp
+            if (uri == null) {
+                app.env.message = "Permesso non concesso: i file non sono stati modificati"
+                return@registerForActivityResult
+            }
+            if (!takeAccess(uri)) {
+                app.env.message = "Questa cartella non si può modificare"
+                return@registerForActivityResult
+            }
+            val known = uri.toString() in app.settings.folders
+            if (!known) {
+                // scelta un'altra cartella: la aggiungo alla libreria
+                app.settings.addFolder(uri.toString())
+                app.env.startScan(false)
+            }
+            AppLog.i("Libreria", "Permesso di scrittura concesso: $uri")
+            app.env.onWriteGranted()
         }
 
     private val notificationPermission =
@@ -94,6 +128,27 @@ class MainActivity : ComponentActivity(), Actions {
             folderPicker.launch(null)
         } catch (e: Exception) {
             AppLog.e("Libreria", "Selettore cartelle non disponibile", e)
+        }
+    }
+
+    override fun requestWriteAccess(tree: String) {
+        try {
+            writePicker.launch(Uri.parse(tree))
+        } catch (e: Exception) {
+            AppLog.e("Libreria", "Selettore cartelle non disponibile", e)
+        }
+    }
+
+    override fun shareText(text: String, subject: String) {
+        try {
+            val send = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, text)
+                putExtra(Intent.EXTRA_SUBJECT, subject)
+            }
+            startActivity(Intent.createChooser(send, subject))
+        } catch (e: Exception) {
+            AppLog.w("App", "Condivisione non riuscita", e)
         }
     }
 
