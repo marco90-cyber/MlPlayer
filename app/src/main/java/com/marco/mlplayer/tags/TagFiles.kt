@@ -162,6 +162,11 @@ object TagFiles {
         tag.put(FieldKey.LYRICS, lyrics)
     }
 
+    /** Toglie la copertina incorporata nel file. */
+    fun removeCover(ctx: Context, settings: Settings, t: Track): WriteResult = write(ctx, settings, t) { tag ->
+        runCatching { tag.deleteArtworkField() }
+    }
+
     /** Sostituisce la copertina incorporata (JPEG). */
     fun writeCover(ctx: Context, settings: Settings, t: Track, jpeg: ByteArray): WriteResult = write(ctx, settings, t) { tag ->
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }

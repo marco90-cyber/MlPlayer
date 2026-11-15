@@ -86,24 +86,45 @@ private class AlbumJob(val track: Track, val hadCover: Boolean) {
     var choice by mutableStateOf<CoverResult?>(null)
     var selected by mutableStateOf(false)
     var state by mutableStateOf(JobState.Searching)
-    val query: String get() = "${Providers2.cleanArtist(artist)} ${Providers2.cleanTitle(title)}"
+    val query: String get() = "${Providers2.cleanArtist(artist)} ${Providers2.cleanTitle(title)}".trim()
 }
 
-/** Pulizia di titolo e artista per la ricerca (feat., "official video"...). */
+/** Pulizia di titolo e artista per la ricerca (numeri di traccia, "_", parentesi, feat.). */
 private object Providers2 {
-    fun cleanTitle(s: String) = s.replace(Regex("""(?i)\s*[(\[](?:feat\.?|ft\.?|with|official|video|audio|lyrics?)[^)\]]*[)\]]"""), "").trim().ifBlank { s }
-    fun cleanArtist(s: String) = s.replace(Regex("""(?i)\s*(?:feat\.?|ft\.?|&|,)\s+.*$"""), "").trim().ifBlank { s }
+    fun cleanTitle(s: String): String = s
+        .replace(Regex("""^\s*\d{1,3}\s*[-._)]\s*"""), "")          // numero di traccia: "01 - ", "1_" (non "99 Luftballons")
+        .replace('_', ' ')
+        .replace(Regex("""\s*[(\[][^)\]]*[)\]]"""), "")               // tutto tra parentesi: (Testo/Lyrics), (Remix)...
+        .replace(Regex("""(?i)\s+(?:feat\.?|ft\.?)\s+.*$"""), "")
+        .replace(Regex("""\s+"""), " ").trim().ifBlank { s.trim() }
+
+    fun cleanArtist(s: String): String {
+        if (s.equals("Artista sconosciuto", true) || s.equals("<unknown>", true)) return ""
+        return s.replace(Regex("""(?i)\s*(?:feat\.?|ft\.?|&|,| x | vs\.? )\s*.*$"""), "").trim()
+    }
+}
+
+private fun tokens(s: String) = s.lowercase().split(Regex("[^\\p{L}\\p{N}]+")).filter { it.length > 1 }.toSet()
+
+/** Somiglianza tra due testi: contenuti l'uno nell'altro o con molte parole in comune. */
+private fun similar(a: String, b: String, min: Double): Boolean {
+    val x = norm(a); val y = norm(b)
+    if (x.isEmpty() || y.isEmpty()) return false
+    if (x == y || x.contains(y) || y.contains(x)) return true
+    val ta = tokens(a); val tb = tokens(b)
+    if (ta.isEmpty() || tb.isEmpty()) return false
+    return ta.intersect(tb).size.toDouble() / minOf(ta.size, tb.size) >= min
 }
 
 private fun norm(s: String) = s.lowercase().replace(Regex("\\(.*?\\)|\\[.*?]"), "").replace(Regex("[^\\p{L}\\p{N}]+"), "")
 
 /** La copertina giusta per il brano: titolo e artista devono corrispondere, altrimenti nessuna. */
 private fun bestMatch(job: AlbumJob, results: List<CoverResult>): CoverResult? {
-    val a = norm(Providers2.cleanTitle(job.title))
-    val ar = norm(Providers2.cleanArtist(job.artist))
-    fun same(x: String, y: String) = x.isNotEmpty() && y.isNotEmpty() && (x == y || x.contains(y) || y.contains(x))
-    return results.firstOrNull { same(norm(it.title), a) && same(norm(it.artist), ar) }
-        ?: results.firstOrNull { norm(it.title) == a && a.length >= 4 }
+    val t = Providers2.cleanTitle(job.title)
+    val ar = Providers2.cleanArtist(job.artist)
+    fun titleOk(r: CoverResult) = similar(Providers2.cleanTitle(r.title), t, 0.7)
+    fun artistOk(r: CoverResult) = ar.isEmpty() || similar(r.artist, ar, 0.5) || similar(r.artist, job.artist, 0.5)
+    return results.firstOrNull { titleOk(it) && artistOk(it) }
 }
 
 /** "Cerca le copertine": ogni brano di una cartella, con la sua copertina trovata in automatico e scritta nel suo file. */
@@ -117,7 +138,7 @@ fun BulkCoverPage(env: AppEnv) {
             .map { AlbumJob(it, env.library.trackCoverFile(it) != null) }
             .sortedWith(compareBy({ it.hadCover }, { it.title.lowercase() }))
     }
-    var onlyMissing by remember { mutableStateOf(true) }
+    var onlyMissing by remember { mutableStateOf(jobs.any { !it.hadCover }) }
     var saving by remember { mutableStateOf(false) }
     var done by remember { mutableIntStateOf(0) }
     var total by remember { mutableIntStateOf(0) }
@@ -132,7 +153,7 @@ fun BulkCoverPage(env: AppEnv) {
                     j.results = r
                     j.choice = bestMatch(j, r)
                     j.state = if (j.choice != null) JobState.Found else JobState.None
-                    j.selected = j.choice != null && !j.hadCover
+                    j.selected = j.choice != null
                 }
             }
         }.awaitAll()
@@ -147,16 +168,22 @@ fun BulkCoverPage(env: AppEnv) {
             var appOnly = 0
             var needTree: String? = null
             val remaining = ArrayList<AlbumJob>()
+            var removed = 0
             for ((i, j) in list.withIndex()) {
                 if (needTree != null) { remaining += j; continue }
-                val c = j.choice ?: continue
-                j.state = JobState.Saving
-                val jpeg = withContext(Dispatchers.IO) { (Http.bytes(c.full) ?: Http.bytes(c.thumb))?.let { CoverSearch.toJpeg(it) } }
-                if (jpeg == null) { j.state = JobState.Failed; done = i + 1; continue }
+                val c = j.choice
                 val t = j.track
-                withContext(Dispatchers.IO) { env.library.setTrackCover(t, jpeg) }
+                j.state = JobState.Saving
+                // nessuna copertina trovata: la tolgo (dal file e nell'app)
+                val jpeg = if (c == null) null
+                else withContext(Dispatchers.IO) { (Http.bytes(c.full) ?: Http.bytes(c.thumb))?.let { CoverSearch.toJpeg(it) } }
+                if (c != null && jpeg == null) { j.state = JobState.Failed; done = i + 1; continue }
+                withContext(Dispatchers.IO) { if (jpeg != null) env.library.setTrackCover(t, jpeg) else env.library.removeTrackCover(t) }
+                if (jpeg == null) removed++
                 if (!TagFiles.canEdit(t.ext)) appOnly++
-                else when (val r = withContext(Dispatchers.IO) { TagFiles.writeCover(env.app, env.settings, t, jpeg) }) {
+                else when (val r = withContext(Dispatchers.IO) {
+                    if (jpeg != null) TagFiles.writeCover(env.app, env.settings, t, jpeg) else TagFiles.removeCover(env.app, env.settings, t)
+                }) {
                     is WriteResult.Ok -> okUris += t.uri
                     is WriteResult.NoAccess -> needTree = r.tree
                     else -> appOnly++
@@ -178,7 +205,8 @@ fun BulkCoverPage(env: AppEnv) {
                 else env.message = "La cartella scelta non contiene questi brani: serve «${folderName(tree)}» o una che la contiene"
             } else {
                 env.message = buildString {
-                    append("Copertine applicate a ${list.count { it.state == JobState.Done }} brani")
+                    append("Fatto: ${list.count { it.state == JobState.Done } - removed} copertine applicate")
+                    if (removed > 0) append(", $removed tolte")
                     if (appOnly > 0) append(" · $appOnly brani solo nell'app (formato non scrivibile)")
                 }
             }
@@ -186,7 +214,8 @@ fun BulkCoverPage(env: AppEnv) {
     }
 
     val shown = jobs.filter { !onlyMissing || !it.hadCover }
-    val selected = jobs.filter { it.selected && it.choice != null }
+    val selected = jobs.filter { it.selected && it.state != JobState.Done && it.state != JobState.Searching }
+    val toRemove = selected.count { it.choice == null }
     val searching = jobs.count { it.state == JobState.Searching }
 
     Column(Modifier.fillMaxSize()) {
@@ -215,6 +244,25 @@ fun BulkCoverPage(env: AppEnv) {
             ) { onlyMissing = it }
         }
 
+        val selectable = shown.filter { it.state != JobState.Done && it.state != JobState.Searching }
+        val allOn = selectable.isNotEmpty() && selectable.all { it.selected }
+        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            androidx.compose.material3.TriStateCheckbox(
+                state = when {
+                    allOn -> androidx.compose.ui.state.ToggleableState.On
+                    selectable.any { it.selected } -> androidx.compose.ui.state.ToggleableState.Indeterminate
+                    else -> androidx.compose.ui.state.ToggleableState.Off
+                },
+                enabled = !saving && selectable.isNotEmpty(),
+                onClick = { val v = !allOn; selectable.forEach { it.selected = v } }
+            )
+            Text("Seleziona tutti (${selectable.size})", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            TextButton(
+                enabled = !saving && selectable.isNotEmpty(),
+                onClick = { selectable.forEach { it.selected = it.choice != null } }
+            ) { Text("Solo trovati") }
+        }
+
         LazyColumn(
             Modifier.weight(1f).fillMaxWidth(),
             contentPadding = PaddingValues(16.dp),
@@ -235,6 +283,7 @@ fun BulkCoverPage(env: AppEnv) {
                     when {
                         saving -> "Salvo… $done di $total"
                         searching > 0 -> "Cerco… ${jobs.size - searching} di ${jobs.size}"
+                        toRemove > 0 -> "${selected.size} selezionati · $toRemove senza copertina da togliere"
                         else -> "${selected.size} brani selezionati"
                     },
                     style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f)
@@ -256,7 +305,7 @@ private fun AlbumJobRow(env: AppEnv, j: AlbumJob, enabled: Boolean, onPick: () -
     Surface(color = cs.surfaceContainer, shape = RoundedCornerShape(20.dp)) {
         Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
             Checkbox(
-                checked = j.selected, enabled = enabled && j.choice != null && j.state != JobState.Done,
+                checked = j.selected, enabled = enabled && j.state != JobState.Done && j.state != JobState.Searching,
                 onCheckedChange = { j.selected = it }
             )
             // copertina attuale
@@ -291,13 +340,13 @@ private fun AlbumJobRow(env: AppEnv, j: AlbumJob, enabled: Boolean, onPick: () -
                     when (j.state) {
                         JobState.Searching -> "Cerco…"
                         JobState.Found -> listOf(j.choice?.source, j.choice?.album).filter { !it.isNullOrBlank() }.joinToString(" · ")
-                        JobState.None -> "Nessuna sicura · tocca per scegliere"
+                        JobState.None -> if (j.selected) "Non trovata · verrà tolta la copertina" else "Non trovata · tocca per scegliere"
                         JobState.Saving -> "Salvo…"
                         JobState.Done -> "Applicata"
                         JobState.Failed -> "Download non riuscito"
                     },
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (j.state == JobState.Failed) cs.error else cs.primary,
+                    color = if (j.state == JobState.Failed || (j.state == JobState.None && j.selected)) cs.error else cs.primary,
                     maxLines = 1
                 )
             }

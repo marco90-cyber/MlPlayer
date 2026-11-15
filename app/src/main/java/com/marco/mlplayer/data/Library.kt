@@ -69,14 +69,29 @@ class Library(private val context: Context) {
     fun coverCount(): Int = coversDir.list()?.size ?: 0
 
     /** Copertina di un brano: la sua, se ne ha una propria, altrimenti quella dell'album. */
-    fun trackCoverFile(t: Track): File? =
-        File(coversDir, "t_${t.id}.jpg").takeIf { it.exists() } ?: coverFile(t.albumKey)
+    fun trackCoverFile(t: Track): File? {
+        // brano a cui è stata tolta la copertina: niente copertina dell'album o della cartella
+        if (File(coversDir, "t_${t.id}.none").exists()) return null
+        return File(coversDir, "t_${t.id}.jpg").takeIf { it.exists() } ?: coverFile(t.albumKey)
+    }
 
     /** Copertina propria di un solo brano (scelta dalla pagina Copertina del brano). */
     fun setTrackCover(t: Track, bytes: ByteArray) {
+        File(coversDir, "t_${t.id}.none").delete()
         saveCover("t_${t.id}", bytes)
         revision++
     }
+
+    /** Toglie la copertina a un solo brano (anche quella presa dall'album o dalla cartella). */
+    fun removeTrackCover(t: Track) {
+        coversDir.mkdirs()
+        File(coversDir, "t_${t.id}.jpg").delete()
+        File(coversDir, "t_${t.id}.none").writeText("")
+        revision++
+    }
+
+    /** Il brano ha una copertina sua (scelta o tolta a mano)? */
+    fun hasOwnCover(t: Track): Boolean = File(coversDir, "t_${t.id}.jpg").exists()
 
     // ------------------------------------------------------------------ caricamento
 
