@@ -28,6 +28,7 @@ class MainActivity : ComponentActivity(), Actions {
             val app = application as MLPlayerApp
             app.settings.addFolder(uri.toString())
             AppLog.i("Libreria", "Cartella aggiunta: $uri")
+            app.env.showScanDialog = true
             app.env.startScan(false)
         }
 

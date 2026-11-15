@@ -119,6 +119,9 @@ class AppEnv(val app: MLPlayerApp) {
     var bulkTracks by mutableStateOf<List<Track>>(emptyList())
     var bulkTitle by mutableStateOf("")
 
+    /** Finestra con l'avanzamento della scansione (dopo aver scelto una cartella). */
+    var showScanDialog by mutableStateOf(false)
+
     /** Messaggio breve in basso (Snackbar). */
     var message by mutableStateOf<String?>(null)
 
