@@ -40,7 +40,7 @@ class MLPlayerApp : Application() {
 
         appScope.launch {
             library.load()
-            if (settings.scanOnStart && settings.folders.isNotEmpty()) {
+            if ((settings.scanOnStart || library.needsCoverFix) && settings.folders.isNotEmpty()) {
                 library.rescan(settings.folders, rebuild = false)
             }
         }

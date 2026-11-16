@@ -60,6 +60,10 @@ class Library(private val context: Context) {
     private val coversDir = File(context.filesDir, "covers")
     private val dbFile = File(context.filesDir, "library.json")
 
+    /** Segno che le copertine dei brani senza album sono già state separate (una volta sola). */
+    private val coverFixFile = File(context.filesDir, "covers_v2")
+    val needsCoverFix: Boolean get() = !coverFixFile.exists()
+
     fun coverFile(albumKey: String?): File? {
         if (albumKey == null) return null
         val f = File(coversDir, "$albumKey.jpg")
@@ -186,10 +190,18 @@ class Library(private val context: Context) {
             }
             coversDir.mkdirs()
             if (rebuild) {
-                coversDir.listFiles()?.forEach { it.delete() }
+                // le copertine scelte (o tolte) a mano per un singolo brano restano
+                coversDir.listFiles()?.forEach { if (!it.name.startsWith("t_")) it.delete() }
+            }
+            // Una volta sola: i brani senza album avevano tutti la copertina del primo brano della cartella.
+            // Tolgo quella copertina comune e li rileggo, così ognuno prende solo la sua.
+            val fix = !rebuild && needsCoverFix
+            if (fix) {
+                tracks.filter { it.album == NO_ALBUM }.map { it.albumKey }.distinct()
+                    .forEach { File(coversDir, "$it.jpg").delete() }
             }
             val old: Map<String, Track> =
-                if (rebuild) emptyMap() else tracks.associateBy { it.uri }
+                if (rebuild) emptyMap() else tracks.filter { !(fix && it.album == NO_ALBUM) }.associateBy { it.uri }
 
             val files = ArrayList<AudioFile>()
             val folderCovers = HashMap<String, Uri>()
@@ -240,8 +252,16 @@ class Library(private val context: Context) {
             }
 
             val list = results.filterNotNull()
+            if (list.isNotEmpty()) {
+                // copertine proprie di brani che non ci sono più
+                val ids = list.mapTo(HashSet()) { it.id }
+                coversDir.listFiles()?.forEach { c ->
+                    if (c.name.startsWith("t_") && c.name.removePrefix("t_").substringBefore('.') !in ids) c.delete()
+                }
+            }
             applyTracks(list)
             saveDb(list)
+            if (needsCoverFix) runCatching { coverFixFile.writeText("") }
             val secs = (SystemClock.elapsedRealtime() - t0) / 1000.0
             val info = "${list.size} brani, ${albums.size} album, ${artists.size} artisti " +
                 "(${reused.get()} riutilizzati, ${failed.get()} errori) in ${String.format("%.1f", secs)} s"
@@ -322,7 +342,26 @@ class Library(private val context: Context) {
         }
     }
 
-    private fun readTrack(f: AudioFile, folderCovers: Map<String, Uri>, coverKeys: MutableSet<String>): Track {
+    private fun embeddedPicture(f: AudioFile): ByteArray? {
+        val rr = MediaMetadataRetriever()
+        return try {
+            rr.setDataSource(context, f.uri)
+            rr.embeddedPicture
+        } finally {
+            try {
+                rr.release()
+            } catch (_: Throwable) {
+            }
+        }
+    }
+
+    /**
+     * [ownOnly]: rilettura di un brano appena modificato. La sua immagine non diventa mai la copertina
+     * dell'album: se l'album non ne ha una, resta solo del brano.
+     */
+    private fun readTrack(
+        f: AudioFile, folderCovers: Map<String, Uri>, coverKeys: MutableSet<String>, ownOnly: Boolean = false,
+    ): Track {
         var title: String? = null
         var artist: String? = null
         var albumArtist: String? = null
@@ -335,8 +374,6 @@ class Library(private val context: Context) {
         var bitrate = 0
         var sampleRate = 0
         var bits = 0
-        var embedded: ByteArray? = null
-
         val r = MediaMetadataRetriever()
         try {
             r.setDataSource(context, f.uri)
@@ -412,38 +449,35 @@ class Library(private val context: Context) {
         }
         val albumKey = md5(keyBase)
 
-        // Copertina: una sola volta per album.
-        if (coverKeys.add(albumKey)) {
-            try {
-                val rr = MediaMetadataRetriever()
-                try {
-                    rr.setDataSource(context, f.uri)
-                    embedded = rr.embeddedPicture
-                } finally {
-                    try {
-                        rr.release()
-                    } catch (_: Throwable) {
-                    }
+        val id = md5(f.uri.toString()).take(16)
+        val ownKey = "t_$id"
+        val noAlbum = finalAlbum.isEmpty()
+        try {
+            fun folderImage(): ByteArray? =
+                folderCovers[f.dirId]?.let { c -> context.contentResolver.openInputStream(c)?.use { it.readBytes() } }
+            when {
+                // copertina tolta a mano a questo brano
+                "$ownKey.none" in coverKeys -> {}
+                // Brano senza album, o con una copertina sua: l'immagine nel file vale solo per lui,
+                // non per gli altri brani della cartella o dell'album.
+                noAlbum || ownKey in coverKeys || (ownOnly && albumKey !in coverKeys) -> {
+                    embeddedPicture(f)?.let { saveCover(ownKey, it); coverKeys.add(ownKey) }
+                    // per la cartella vale solo l'immagine che sta nella cartella (cover.jpg, folder.jpg...)
+                    if (noAlbum && coverKeys.add(albumKey)) folderImage()?.let { saveCover(albumKey, it) }
                 }
-                if (embedded == null) {
-                    val cover = folderCovers[f.dirId]
-                    if (cover != null) {
-                        embedded = context.contentResolver.openInputStream(cover)?.use { it.readBytes() }
-                    }
-                }
-                val bytes = embedded
-                if (bytes != null) saveCover(albumKey, bytes)
-            } catch (e: Throwable) {
-                AppLog.w("Libreria", "Copertina non salvata per ${f.name}", e)
+                // Album vero: copertina una sola volta per album.
+                coverKeys.add(albumKey) -> (embeddedPicture(f) ?: folderImage())?.let { saveCover(albumKey, it) }
             }
+        } catch (e: Throwable) {
+            AppLog.w("Libreria", "Copertina non salvata per ${f.name}", e)
         }
 
         return Track(
-            id = md5(f.uri.toString()).take(16),
+            id = id,
             uri = f.uri.toString(),
             title = finalTitle,
             artist = finalArtist,
-            album = if (finalAlbum.isEmpty()) "Album sconosciuto" else finalAlbum,
+            album = if (noAlbum) NO_ALBUM else finalAlbum,
             albumArtist = albumArtist ?: "",
             genre = genre ?: "Sconosciuto",
             durationMs = duration,
@@ -564,7 +598,7 @@ class Library(private val context: Context) {
                 }
                 val docId = DocumentsContract.getDocumentId(uri)
                 val f = AudioFile(uri, name, list[i].ext, modified, size, docId.substringBeforeLast('/', docId))
-                list[i] = readTrack(f, emptyMap(), coverKeys)
+                list[i] = readTrack(f, emptyMap(), coverKeys, ownOnly = true)
             } catch (e: Throwable) {
                 AppLog.w("Libreria", "Brano non riletto: $u", e)
             }
@@ -617,6 +651,7 @@ class Library(private val context: Context) {
 
     companion object {
         private const val MAX_COVER = 640
+        const val NO_ALBUM = "Album sconosciuto"
         private val LEADING_INT = Regex("^\\d+")
 
         /** Formati principali: MP3, FLAC, WAV, OGG/Opus, AAC/M4A, MKA, AMR. */
