@@ -1,0 +1,6 @@
+41:> Task :app:compileDebugKotlin FAILED
+42:e: file:///home/runner/work/MlPlayer/MlPlayer/app/src/main/java/com/marco/mlplayer/ui/NowPlayingPage.kt:373:89 Unresolved reference 'widthIn'.
+47:* What went wrong:
+48:Execution failed for task ':app:compileDebugKotlin'.
+58:org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:compileDebugKotlin'.
+252:BUILD FAILED in 31s
