@@ -91,6 +91,23 @@ class MainActivity : ComponentActivity(), Actions {
         val env = app.env
         env.actions = this
 
+        // controllo aggiornamenti all'apertura dell'app (non a ogni rotazione dello schermo)
+        if (savedInstanceState == null && app.settings.updateCheckOnStart) {
+            AppUpdate.addListener(object : AppUpdate.Listener {
+                override fun onChanged() {
+                    when (val st = AppUpdate.state) {
+                        is AppUpdate.State.Available -> {
+                            env.message = "Aggiornamento disponibile: ${st.release.name}"
+                            AppUpdate.removeListener(this)
+                        }
+                        is AppUpdate.State.UpToDate, is AppUpdate.State.Failed, is AppUpdate.State.Ready -> AppUpdate.removeListener(this)
+                        else -> {}
+                    }
+                }
+            })
+            AppUpdate.check(app)
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
             != PackageManager.PERMISSION_GRANTED

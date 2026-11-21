@@ -321,7 +321,7 @@ fun NowPlayingPage(env: AppEnv) {
             }
 
             // volume dell'app
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            if (env.settings.showVolume) Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.AutoMirrored.Filled.VolumeDown, null, tint = cs.onSurfaceVariant, modifier = Modifier.size(20.dp))
                 Slider(
                     value = gainToPos(e.volume),

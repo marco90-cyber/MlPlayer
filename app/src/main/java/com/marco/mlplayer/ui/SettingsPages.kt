@@ -99,6 +99,7 @@ fun AppearancePage(env: AppEnv, onBack: (() -> Unit)?) {
             ) { s.coverColors = it }
         }
         MLGroup("VU meter") {
+            MLSwitchRow("Volume nel lettore", "Il cursore del volume sotto i comandi", s.showVolume) { s.showVolume = it }
             MLSwitchRow("VU meter nel lettore", "Livello dei canali sinistro e destro sotto i comandi", s.showVu) { s.showVu = it }
             MLDependent(s.showVu) {
                 MLChoiceRow(

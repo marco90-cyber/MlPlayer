@@ -183,6 +183,7 @@ fun AppEnv.updateScreen(): MenuScreen = MenuScreen("Aggiornamenti") {
     val r = u.release
     buildList {
         add(MenuItem("Cerca aggiornamenti", sub = u.text, dimmed = u.checking) { AppUpdate.check(app) })
+        add(toggleItem("Controlla all'avvio", settings.updateCheckOnStart, sub = "Cerca una versione nuova ogni volta che apri l'app") { settings.updateCheckOnStart = it })
         add(info("Versione installata", "${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})"))
         if (r != null) {
             add(info("Ultima su GitHub", "${r.name} (build ${r.code})"))

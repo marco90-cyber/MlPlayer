@@ -63,6 +63,10 @@ class Settings(context: Context) {
     // Aspetto (tema chiaro/scuro, colori e interruttori sono in MLThemeSettings)
     /** Colori dell'app presi dalla copertina del brano in riproduzione. */
     var coverColors by BoolPref(sp, "cover_colors", true)
+    /** Cursore del volume nel lettore. */
+    var showVolume by BoolPref(sp, "show_volume", true)
+    /** Controlla se c'è una versione nuova ogni volta che si apre l'app. */
+    var updateCheckOnStart by BoolPref(sp, "update_check_on_start", true)
     /** VU meter nel lettore. */
     var showVu by BoolPref(sp, "show_vu", true)
     /** Informazioni sotto il lettore, a scelta (formato e uscita sono quelle che c'erano già). */
