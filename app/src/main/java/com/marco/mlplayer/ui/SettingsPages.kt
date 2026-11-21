@@ -113,6 +113,15 @@ fun AppearancePage(env: AppEnv, onBack: (() -> Unit)?) {
                 ) { s.vuSpeed = it.toInt() }
             }
         }
+        MLGroup("Info nel lettore") {
+            MLSwitchRow("Formato e frequenza", "Es. FLAC · 24 bit / 96 kHz", s.infoQuality) { s.infoQuality = it }
+            MLSwitchRow("Bitrate", "Es. 320 kbps", s.infoBitrate) { s.infoBitrate = it }
+            MLSwitchRow("Canali", "Mono, Stereo…", s.infoChannels) { s.infoChannels = it }
+            MLSwitchRow("Uscita attiva", "Dove va il suono (tocca per il percorso del segnale)", s.infoOutput) { s.infoOutput = it }
+            MLSwitchRow("Livello del brano", "ReplayGain e guadagno applicato", s.infoLevel) { s.infoLevel = it }
+            MLSwitchRow("Percorso del segnale", "Una riga: sorgente, DSP e uscita", s.infoPath) { s.infoPath = it }
+            MLSwitchRow("Altro sul brano", "Album e anno", s.infoMore) { s.infoMore = it }
+        }
         MLGroup("Altro") {
             MLSwitchRow("Copertine negli elenchi", null, s.coverInMenu) { s.coverInMenu = it }
             MLSwitchRow("Schermo sempre acceso", "Mentre l'app è aperta", s.keepScreenOn) { s.keepScreenOn = it }

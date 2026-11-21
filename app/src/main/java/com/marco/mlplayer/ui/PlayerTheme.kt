@@ -47,7 +47,7 @@ fun PlayerTheme(env: AppEnv, content: @Composable () -> Unit) {
     val target = if (seed != null) mlColorScheme(ml.theme, "auto", seed) else mlColorScheme(ml.theme, ml.accent)
     val scheme = animatedScheme(target)
     CompositionLocalProvider(LocalSwitchStyle provides ml.switchStyle) {
-        MaterialTheme(colorScheme = scheme, content = content)
+        MaterialTheme(colorScheme = scheme, typography = LastWaveTypography, shapes = LastWaveShapes, content = content)
     }
 }
 

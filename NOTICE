@@ -49,3 +49,6 @@ LastWave (github.com/Clash-Projects/LastWave-native, GPL-3.0); Lyrics.ovh per il
 interna di YouTube, come in LastWave (non ufficiale, può smettere di funzionare).
 Traduzione e romanizzazione: servizio pubblico di Google Traduttore, come in LastWave.
 Copertine: iTunes Search API, Deezer API, MusicBrainz e Cover Art Archive.
+
+Google Sans Flex (app/src/main/res/font/google_sans_flex.ttf, preso da LastWave) - SIL Open Font License 1.1.
+Scala dei testi e angoli dei componenti ripresi dal tema di LastWave (GPL-3.0).

@@ -65,6 +65,14 @@ class Settings(context: Context) {
     var coverColors by BoolPref(sp, "cover_colors", true)
     /** VU meter nel lettore. */
     var showVu by BoolPref(sp, "show_vu", true)
+    /** Informazioni sotto il lettore, a scelta (formato e uscita sono quelle che c'erano già). */
+    var infoQuality by BoolPref(sp, "info_quality", true)
+    var infoBitrate by BoolPref(sp, "info_bitrate", false)
+    var infoChannels by BoolPref(sp, "info_channels", false)
+    var infoOutput by BoolPref(sp, "info_output", true)
+    var infoLevel by BoolPref(sp, "info_level", false)
+    var infoPath by BoolPref(sp, "info_path", false)
+    var infoMore by BoolPref(sp, "info_more", false)
     /** Lancette dei VU: 0 = morbide (300 ms), 1 = rapide (120 ms) */
     var vuSpeed by IntPref(sp, "vu_speed", 0)
     /** Riferimento dei VU: livello RMS in dBFS che vale 0 VU (-20/-18/-14/-12), 0 = scala in dBFS di picco. */
