@@ -208,6 +208,7 @@ fun LyricsPage(env: AppEnv) {
             }
         }
 
+        if (t != null && showOffset) OffsetPanel(env, t) { showOffset = false }
         if (t != null) LyricsTransport(env)
     }
 
@@ -219,7 +220,6 @@ fun LyricsPage(env: AppEnv) {
         onEdit = { showOptions = false; showEdit = true },
     )
     if (t != null && showSources) LyricsSourcesSheet(env, t) { showSources = false }
-    if (t != null && showOffset) OffsetDialog(env, t) { showOffset = false }
     if (t != null && showEdit) EditLyricsDialog(env, t) { showEdit = false }
 }
 
@@ -562,35 +562,47 @@ private fun SourceRow(title: String, sub: String, selected: Boolean, status: Str
     }
 }
 
+/** Pannello del ritardo sopra i comandi: il testo resta visibile e la musica continua mentre lo regoli. */
 @Composable
-private fun OffsetDialog(env: AppEnv, t: Track, onDismiss: () -> Unit) {
+private fun OffsetPanel(env: AppEnv, t: Track, onDone: () -> Unit) {
     val store = env.lyrics
     @Suppress("UNUSED_VARIABLE") val tick = store.offsetTick
     val v = store.offset(t)
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Ritardo di sincronizzazione") },
-        text = {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                Text(fmtOffset(v), style = MaterialTheme.typography.displaySmall)
-                Spacer(Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    for (d in listOf(-500, -100, 100, 500)) {
-                        OutlinedButton(onClick = { store.setOffset(t, v + d) }, contentPadding = PaddingValues(horizontal = 10.dp)) {
-                            Text((if (d > 0) "+" else "−") + String.format(Locale.ITALY, "%.1f", kotlin.math.abs(d) / 1000f))
-                        }
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Timer, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(10.dp))
+                Text("Ritardo", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(10.dp))
+                Text(fmtOffset(v), style = MaterialTheme.typography.headlineMedium)
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = { store.setOffset(t, 0) }) { Text("Azzera") }
+                TextButton(onClick = onDone) { Text("Fatto") }
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                for (d in listOf(-500, -100, 100, 500)) {
+                    OutlinedButton(
+                        onClick = { store.setOffset(t, v + d) },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 4.dp),
+                    ) {
+                        Text((if (d > 0) "+" else "−") + String.format(Locale.ITALY, "%.1f", kotlin.math.abs(d) / 1000f))
                     }
                 }
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    "Con un valore positivo il testo arriva prima, con uno negativo arriva dopo. Vale solo per questo brano.",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Fatto") } },
-        dismissButton = { TextButton(onClick = { store.setOffset(t, 0) }) { Text("Azzera") } },
-    )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Positivo: il testo arriva prima · negativo: dopo. Vale solo per questo brano.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
 }
 
 @Composable
