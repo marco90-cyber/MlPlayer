@@ -71,6 +71,7 @@ import com.marco.mlplayer.audio.Modes
 import com.marco.mlplayer.audio.PresetText
 import com.marco.mlplayer.audio.ReplayGain
 import com.marco.mlplayer.util.AppLog
+import com.marco.mlplayer.util.khz
 import kotlinx.coroutines.delay
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -734,7 +735,7 @@ private fun CurveCard(env: AppEnv, s: DspSettings, compact: Boolean, pinned: Boo
 
 private fun statusLine(i: com.marco.mlplayer.audio.DspInfo): String {
     if (i.sampleRate <= 0) return "In attesa di un brano"
-    val hz = if (i.sampleRate % 1000 == 0) "${i.sampleRate / 1000} kHz" else String.format(Locale.ITALY, "%.1f kHz", i.sampleRate / 1000.0)
+    val hz = khz(i.sampleRate)
     val state = if (i.bypass) "Bypass" else "DSP · ${i.modules.joinToString(", ").ifEmpty { "nessun modulo" }}"
     return "$state · uscita ${i.outEncoding.removePrefix("PCM ")} · $hz"
 }

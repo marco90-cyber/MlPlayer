@@ -6,7 +6,7 @@ Lettore musicale per Android Hi-Res in **Material Design 3**, con i colori presi
 
 - Solo in verticale. Barra di navigazione Material 3: Libreria · Lettore · Equalizzatore · Impostazioni; nelle altre sezioni il brano in riproduzione resta sopra la barra
 - **Tema** con [MLTheme](https://github.com/marco90-cyber/MLTheme): chiaro, scuro o automatico, colori dal sistema, dallo sfondo o fissi, stile degli interruttori; **colori dalla copertina** del brano (con passaggio morbido)
-- **Lettore**: copertina grande, titolo, avanzamento, comandi, volume dell'app, **VU meter** (sinistro e destro, RMS con balistica VU, spia di picco; si tolgono in Impostazioni → Aspetto) con riferimento 0 VU = −12, −14, −18, −20 dBFS o dBFS di picco; qualità della sorgente e dispositivo d'uscita in due chip che aprono il percorso del segnale; coda dei brani
+- **Lettore**: copertina grande, titolo, avanzamento, comandi, volume dell'app, **VU meter** (sinistro e destro, RMS con balistica VU, spia di picco; spenti di default, si attivano in Impostazioni → Aspetto) con riferimento 0 VU = −12, −14, −18, −20 dBFS o dBFS di picco; qualità della sorgente e dispositivo d'uscita in due chip che aprono il percorso del segnale; coda dei brani
 - Dal lettore si aprono anche **Analizzatore** e **Uscita audio**
 - **Testi** (pulsante sulla copertina): sincronizzati a parole o a righe, che scorrono con la musica (tocca una riga per saltarci). Fonti: tag del file, file `.lrc` accanto al brano, LRCLIB, Apple Music e QQ Music (tramite BetterLyrics), Kugou, Unison, Lyrics.ovh e, solo se le scegli tu, le fonti sperimentali YouTube Music (scheda Testo) e sottotitoli di YouTube (solo quelli caricati a mano); scelta automatica o manuale con "Prova un'altra fonte". Opzioni: dimensione, traduzione nella lingua del telefono, romanizzazione, ritardo di sincronizzazione per brano, modifica a mano, condivisione, salvataggio dentro il file
 - **Copertina** (menu ⋮ sulla copertina): ricerca su internet (iTunes, Deezer, Cover Art Archive) o dalla galleria, scritta dentro il file, anche per tutto l'album; in ogni cartella della Libreria "Cerca le copertine" trova da sola la copertina di ogni brano (di base quelli senza) e la scrive nel suo file, in un colpo
@@ -20,6 +20,7 @@ Lettore musicale per Android Hi-Res in **Material Design 3**, con i colori presi
 - **Decoder FFmpeg** (Jellyfin) per i formati che il telefono non decodifica (ALAC, AC-3, E-AC-3, DTS, TrueHD in M4A/MKA/WebM)
 - **Aggiornamenti** (Impostazioni → Aggiornamenti): controlla l'ultima release su GitHub e scarica l'APK
 - Riproduzione in background con notifica e controlli multimediali
+- **Android Auto**: libreria sfogliabile (Brani, Album, Artisti, Generi) con copertine, ricerca e comandi vocali; i brani proseguono nell'album, artista o genere da cui li scegli
 
 ## Impostazioni
 

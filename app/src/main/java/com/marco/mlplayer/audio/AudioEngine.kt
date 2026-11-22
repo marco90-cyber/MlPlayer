@@ -26,6 +26,7 @@ import com.marco.mlplayer.data.Library
 import com.marco.mlplayer.data.Settings
 import com.marco.mlplayer.data.Track
 import com.marco.mlplayer.util.AppLog
+import com.marco.mlplayer.util.khz
 
 /**
  * Motore audio condiviso da interfaccia e servizio in background.
@@ -289,7 +290,7 @@ class AudioEngine(
         hiResNow = t.isHiResFile || sr > 48000 || runtimePcmBits > 16
         val parts = ArrayList<String>()
         parts.add(t.formatLabel)
-        if (sr > 0) parts.add(if (sr % 1000 == 0) "${sr / 1000} kHz" else String.format("%.1f kHz", sr / 1000.0))
+        if (sr > 0) parts.add(khz(sr))
         if (bits > 0) parts.add("$bits bit")
         val br = if (t.bitrateKbps > 0) t.bitrateKbps else runtimeBitrate
         if (br > 0) parts.add("$br kbps")
@@ -312,8 +313,16 @@ class AudioEngine(
             .build()
     }
 
-    fun playQueue(tracks: List<Track>, startIndex: Int, shuffle: Boolean = false) {
-        if (tracks.isEmpty()) return
+    /** Voce di coda per la sessione multimediale (Android Auto e simili). */
+    fun mediaItemFor(t: Track): MediaItem = toMediaItem(t)
+
+    /**
+     * Una sessione esterna (Android Auto, assistente vocale) sta per mettere nel player questi brani:
+     * il motore li adotta come coda, così titolo e analisi restano allineati.
+     */
+    fun adoptExternalQueue(tracks: List<Track>) = resetQueue(tracks)
+
+    private fun resetQueue(tracks: List<Track>) {
         scanCancel.set(true)            // annulla le analisi della coda precedente
         scanCancel = java.util.concurrent.atomic.AtomicBoolean(false)
         scanQueued.clear()
@@ -322,6 +331,11 @@ class AudioEngine(
         runtimePcmBits = 0
         runtimeBitrate = 0
         consecutiveErrors = 0
+    }
+
+    fun playQueue(tracks: List<Track>, startIndex: Int, shuffle: Boolean = false) {
+        if (tracks.isEmpty()) return
+        resetQueue(tracks)
         val start = startIndex.coerceIn(0, tracks.lastIndex)
         player.shuffleModeEnabled = shuffle
         player.setMediaItems(tracks.map { toMediaItem(it) }, start, 0L)

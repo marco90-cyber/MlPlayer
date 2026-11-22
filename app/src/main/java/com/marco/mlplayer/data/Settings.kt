@@ -68,7 +68,7 @@ class Settings(context: Context) {
     /** Controlla se c'è una versione nuova ogni volta che si apre l'app. */
     var updateCheckOnStart by BoolPref(sp, "update_check_on_start", true)
     /** VU meter nel lettore. */
-    var showVu by BoolPref(sp, "show_vu", true)
+    var showVu by BoolPref(sp, "show_vu", false)
     /** Informazioni sotto il lettore, a scelta (formato e uscita sono quelle che c'erano già). */
     var infoQuality by BoolPref(sp, "info_quality", true)
     var infoBitrate by BoolPref(sp, "info_bitrate", false)

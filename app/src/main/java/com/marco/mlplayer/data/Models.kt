@@ -1,5 +1,7 @@
 package com.marco.mlplayer.data
 
+import com.marco.mlplayer.util.khz
+
 data class Track(
     val id: String,
     val uri: String,
@@ -28,10 +30,7 @@ data class Track(
     fun detailLine(): String {
         val parts = ArrayList<String>()
         parts.add(formatLabel)
-        if (sampleRate > 0) {
-            val khz = sampleRate / 1000.0
-            parts.add(if (sampleRate % 1000 == 0) "${sampleRate / 1000} kHz" else String.format("%.1f kHz", khz))
-        }
+        if (sampleRate > 0) parts.add(khz(sampleRate))
         if (bits > 0) parts.add("$bits bit")
         if (bitrateKbps > 0) parts.add("$bitrateKbps kbps")
         return parts.joinToString(" · ")

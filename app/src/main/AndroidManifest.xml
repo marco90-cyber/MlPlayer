@@ -35,9 +35,22 @@
             android:exported="true"
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>
+                <action android:name="androidx.media3.session.MediaLibraryService" />
                 <action android:name="androidx.media3.session.MediaSessionService" />
+                <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
         </service>
+
+        <!-- Copertine per Android Auto: sola lettura -->
+        <provider
+            android:name=".audio.CoverProvider"
+            android:authorities="${applicationId}.covers"
+            android:exported="true" />
+
+        <!-- App musicale per Android Auto -->
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
