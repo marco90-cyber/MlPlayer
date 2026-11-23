@@ -85,6 +85,12 @@ class AudioEngine(
 
     /** Brani della coda attuale, nell'ordine in cui sono stati messi (per la schermata Coda). */
     val queueTracks: List<Track> get() = queue
+
+    /** Il brano che parte dopo quello attuale, rispettando mescola e ripetizione (null a fine coda). */
+    fun upNext(): Track? {
+        val i = player.nextMediaItemIndex
+        return if (i == C.INDEX_UNSET) null else queue.getOrNull(i)
+    }
     private var consecutiveErrors = 0
     private var runtimeSampleRate = 0
     private var runtimePcmBits = 0
