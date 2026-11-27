@@ -58,6 +58,14 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -113,21 +121,30 @@ fun PlayerApp(env: AppEnv) {
             if (!env.back()) activity?.moveTaskToBack(true)
         }
 
+        val sheet = remember { PlayerSheetState(if (env.tab == Tab.NowPlaying && env.engine.currentTrack != null) 1f else 0f) }
         Surface(Modifier.fillMaxSize(), color = cs.surface) {
-            Box(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize().onGloballyPositioned { sheet.origin = it.positionInRoot() }) {
                 Scaffold(
                     containerColor = cs.surface,
                     contentWindowInsets = WindowInsets(0),
                     bottomBar = {
-                        Column {
-                            if (env.tab != Tab.NowPlaying && env.engine.currentTrack != null) MiniPlayer(env)
-                            NavBar(env)
+                        Column(Modifier.background(cs.surface)) {
+                            if (env.engine.currentTrack != null) MiniPlayer(
+                                env,
+                                Modifier
+                                    .graphicsLayer { alpha = (1f - sheet.expansion.value * 2.2f).coerceIn(0f, 1f) }
+                                    .onGloballyPositioned { sheet.miniBounds = it.boundsInRoot() }
+                            )
+                            NavBar(env, Modifier.onGloballyPositioned { sheet.navTop = it.positionInRoot().y })
                         }
                     }
                 ) { pad ->
                     // le pagine dentro non devono riaggiungere lo spazio della barra di navigazione
                     Box(Modifier.padding(pad).consumeWindowInsets(pad).fillMaxSize()) {
-                        Crossfade(targetState = env.tab, animationSpec = tween(200), label = "sezione") { t ->
+                        // con un brano il lettore è lo strato sopra (PlayerSheetLayer): sotto resta la pagina da cui sei arrivato
+                        val below = if (env.tab == Tab.NowPlaying && env.engine.currentTrack != null)
+                            env.tabBeforePlayer.takeIf { it != Tab.NowPlaying } ?: Tab.Library else env.tab
+                        Crossfade(targetState = below, animationSpec = tween(200), label = "sezione") { t ->
                             when (t) {
                                 Tab.NowPlaying -> NowPlayingPage(env)
                                 Tab.Library -> MenuPage(env, env.libraryNav)
@@ -137,6 +154,9 @@ fun PlayerApp(env: AppEnv) {
                         }
                     }
                 }
+
+                // lettore: cresce dal mini player e si chiude trascinando in basso
+                PlayerSheetLayer(env, sheet)
 
                 // pagine sopra alle sezioni
                 for (o in listOf(Overlay.Analyzer, Overlay.Output, Overlay.Log, Overlay.Lyrics, Overlay.Cover, Overlay.Tags, Overlay.BulkCovers)) {
@@ -171,7 +191,7 @@ fun PlayerApp(env: AppEnv) {
                     snack.showSnackbar(m)
                     if (env.message == m) env.message = null
                 }
-                SnackbarHost(snack, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 88.dp))
+                SnackbarHost(snack, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = if (env.tab != Tab.NowPlaying && env.engine.currentTrack != null) 160.dp else 88.dp))
                 if (env.showSignalPath) SignalPathHost(env) { env.showSignalPath = false }
                 AppUpdateHost()
             }
@@ -180,8 +200,8 @@ fun PlayerApp(env: AppEnv) {
 }
 
 @Composable
-private fun NavBar(env: AppEnv) {
-    NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer) {
+private fun NavBar(env: AppEnv, modifier: Modifier = Modifier) {
+    NavigationBar(modifier = modifier, containerColor = MaterialTheme.colorScheme.surfaceContainer) {
         for (t in Tab.entries) {
             val sel = env.tab == t
             val (on, off) = t.icons()
@@ -193,18 +213,20 @@ private fun NavBar(env: AppEnv) {
                     env.select(t)
                 },
                 icon = { Icon(if (sel) on else off, contentDescription = null) },
-                label = { Text(t.label, maxLines = 1) },
+                label = { Text(t.label, maxLines = 1, softWrap = false, fontSize = 11.sp) },
             )
         }
     }
 }
 
-/** Brano in riproduzione sopra la barra, nelle altre sezioni: tocca per aprire il lettore. */
+/** Brano in riproduzione, in una scheda scura e arrotondata sopra la barra: tocca per aprire il lettore. */
 @Composable
-private fun MiniPlayer(env: AppEnv) {
+private fun MiniPlayer(env: AppEnv, modifier: Modifier = Modifier) {
     val e = env.engine
     val t = e.currentTrack ?: return
     val cs = MaterialTheme.colorScheme
+    val bg = deepAccent(cs)
+    val fg = onDeepAccent(cs)
     var progress by remember { mutableFloatStateOf(0f) }
     LaunchedEffect(t.id, e.isPlaying) {
         while (true) {
@@ -218,10 +240,15 @@ private fun MiniPlayer(env: AppEnv) {
     Column(
         Modifier
             .fillMaxWidth()
-            .background(cs.surfaceContainer)
+            .padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 8.dp)
+            .then(modifier)
+            .clip(RoundedCornerShape(28.dp))
+            .background(bg)
             .clickable { env.feedback.tapScreen(); env.openNowPlaying() }
     ) {
-        Row(Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Apri il lettore", tint = fg, modifier = Modifier.size(28.dp))
+            Spacer(Modifier.width(4.dp))
             Box(
                 Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)).background(cs.primaryContainer),
                 contentAlignment = Alignment.Center
@@ -229,29 +256,36 @@ private fun MiniPlayer(env: AppEnv) {
                 if (cover != null) Image(cover, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                 else Icon(Icons.Filled.MusicNote, null, tint = cs.onPrimaryContainer)
             }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
-                Text(t.title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(t.title, style = MaterialTheme.typography.titleSmall, color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (t.artist.isNotBlank()) {
                     Text(
-                        t.artist, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
+                        t.artist, style = MaterialTheme.typography.bodySmall, color = fg.copy(alpha = 0.75f),
                         maxLines = 1, overflow = TextOverflow.Ellipsis
                     )
                 }
             }
-            IconButton(onClick = { env.feedback.tapScreen(); env.playPause() }) {
+            IconButton(onClick = { env.feedback.tapScreen(); e.previous() }) {
+                Icon(Icons.Filled.SkipPrevious, contentDescription = "Brano precedente", tint = fg)
+            }
+            Box(
+                Modifier.size(44.dp).clip(CircleShape).background(fg).clickable { env.feedback.tapScreen(); env.playPause() },
+                contentAlignment = Alignment.Center,
+            ) {
                 Icon(
                     if (e.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = if (e.isPlaying) "Pausa" else "Riproduci"
+                    contentDescription = if (e.isPlaying) "Pausa" else "Riproduci", tint = bg,
                 )
             }
             IconButton(onClick = { env.feedback.tapScreen(); e.next() }) {
-                Icon(Icons.Filled.SkipNext, contentDescription = "Brano successivo")
+                Icon(Icons.Filled.SkipNext, contentDescription = "Brano successivo", tint = fg)
             }
         }
         LinearProgressIndicator(
             progress = { progress },
             modifier = Modifier.fillMaxWidth().height(2.dp),
+            color = fg, trackColor = fg.copy(alpha = 0.2f),
             drawStopIndicator = {},
             gapSize = 0.dp,
         )

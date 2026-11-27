@@ -33,6 +33,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.outlined.LightMode as LightModeOutlined
 import androidx.compose.material.icons.filled.Lyrics
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -50,6 +52,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -65,6 +68,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -75,6 +79,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -92,6 +99,7 @@ import com.marco.mlplayer.lyrics.LyricsProvider
 import com.marco.mlplayer.lyrics.LyricsStore
 import com.marco.mlplayer.lyrics.SourceState
 import com.marco.mlplayer.util.mmss
+import android.widget.Toast
 import com.marco.mltheme.MLGroup
 import com.marco.mltheme.MLNavRow
 import com.marco.mltheme.MLSwitchRow
@@ -120,11 +128,30 @@ fun LyricsPage(env: AppEnv) {
     var showSources by remember { mutableStateOf(false) }
     var showOffset by remember { mutableStateOf(false) }
     var showEdit by remember { mutableStateOf(false) }
+    // schermo sempre acceso: vale solo in questa schermata, si spegne da solo quando esci dai testi
+    var keepOn by remember { mutableStateOf(false) }
+    val view = LocalView.current
+    val ctx = LocalContext.current
+    DisposableEffect(keepOn) {
+        view.keepScreenOn = keepOn
+        onDispose { view.keepScreenOn = false }
+    }
 
     LaunchedEffect(t?.id) { if (t != null) store.load(t) }
     LaunchedEffect(store.lyrics, s.lyricsTranslate) { if (s.lyricsTranslate) store.loadTranslation() }
     LaunchedEffect(store.lyrics, s.lyricsRomanize) { if (s.lyricsRomanize) store.loadRomanization() }
 
+    val tint = rememberCoverTint(env, t)
+    val onDark = cs.copy(
+        primary = Color.White, onPrimary = Color(0xFF1B1B1B),
+        onSurface = Color.White, onSurfaceVariant = Color.White.copy(alpha = 0.72f),
+        secondaryContainer = Color.White.copy(alpha = 0.18f), onSecondaryContainer = Color.White,
+        surfaceContainer = Color.Black.copy(alpha = 0.22f),
+    )
+    MaterialTheme(colorScheme = onDark, typography = MaterialTheme.typography, shapes = MaterialTheme.shapes) {
+    val cs = MaterialTheme.colorScheme
+    Box(Modifier.fillMaxSize()) {
+    LyricsBackdrop(tint, Modifier.matchParentSize())
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
             title = {
@@ -141,26 +168,43 @@ fun LyricsPage(env: AppEnv) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Indietro")
                 }
             },
-            actions = {
-                IconButton(onClick = { env.feedback.tapScreen(); showOptions = true }, enabled = t != null) {
-                    Icon(Icons.Filled.Tune, contentDescription = "Opzioni del testo")
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = cs.surface),
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
         )
 
         val l = store.lyrics
-        // fonte e tipo di sincronizzazione: tocca per cambiare fonte
-        if (l != null && !store.loading) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.Center) {
-                Surface(
-                    color = cs.secondaryContainer, shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.clip(RoundedCornerShape(16.dp)).clickable { showSources = true }
-                ) {
-                    Text(
-                        "${l.kind.label} · ${l.source}", style = MaterialTheme.typography.labelLarge,
-                        color = cs.onSecondaryContainer, modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
-                    )
+        // fonte e tipo di sincronizzazione (tocca per cambiare fonte), con accanto schermo sempre acceso e opzioni
+        if (t != null) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (l != null && !store.loading) {
+                    Surface(
+                        color = cs.secondaryContainer, shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.clip(RoundedCornerShape(16.dp)).clickable { showSources = true }
+                    ) {
+                        Text(
+                            "${l.kind.label} · ${l.source}", style = MaterialTheme.typography.labelLarge,
+                            color = cs.onSecondaryContainer, modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                }
+                val awakeClick = {
+                    env.feedback.tapScreen()
+                    keepOn = !keepOn
+                    Toast.makeText(
+                        ctx, if (keepOn) "Schermo sempre acceso: attivo" else "Schermo sempre acceso: disattivato",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                if (keepOn) FilledTonalIconButton(onClick = awakeClick) {
+                    Icon(Icons.Filled.LightMode, contentDescription = "Schermo sempre acceso: attivo")
+                } else IconButton(onClick = awakeClick) {
+                    Icon(Icons.Outlined.LightModeOutlined, contentDescription = "Schermo sempre acceso: disattivato", tint = cs.onSurfaceVariant)
+                }
+                IconButton(onClick = { env.feedback.tapScreen(); showOptions = true }) {
+                    Icon(Icons.Filled.Tune, contentDescription = "Opzioni del testo")
                 }
             }
         }
@@ -206,10 +250,12 @@ fun LyricsPage(env: AppEnv) {
                 l!!.synced -> SyncedLyrics(env, t!!, l.lines)
                 else -> PlainLyrics(env, l!!.lines)
             }
+            if (t != null && showOffset) OffsetPanel(env, t, Modifier.align(Alignment.BottomCenter)) { showOffset = false }
         }
 
-        if (t != null && showOffset) OffsetPanel(env, t) { showOffset = false }
-        if (t != null) LyricsTransport(env)
+        if (t != null) LyricsTransportBar(env)
+    }
+    }
     }
 
     if (t != null && showOptions) LyricsOptionsSheet(
@@ -273,17 +319,11 @@ private fun SyncedLyrics(env: AppEnv, t: Track, lines: List<LLine>) {
             state = list,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 320.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(22.dp)
         ) {
             itemsIndexed(lines) { i, line ->
                 val active = i == current
-                val color by animateColorAsState(
-                    when {
-                        active -> cs.onSurface
-                        i < current -> cs.onSurface.copy(alpha = 0.42f)
-                        else -> cs.onSurface.copy(alpha = 0.32f)
-                    }, tween(250), label = "riga"
-                )
+                val dist = if (current < 0) i else kotlin.math.abs(i - current)
                 Column(
                     Modifier
                         .fillMaxWidth()
@@ -295,22 +335,8 @@ private fun SyncedLyrics(env: AppEnv, t: Track, lines: List<LLine>) {
                         }
                         .padding(vertical = 4.dp)
                 ) {
-                    val size = (26 * scale).sp
-                    if (line.text.isBlank()) {
-                        Text("♪", fontSize = size, color = color, fontWeight = FontWeight.Bold)
-                    } else if (active && line.words.isNotEmpty()) {
-                        // a parole: quelle già cantate in pieno colore, le altre più tenui
-                        val text = buildAnnotatedString {
-                            for (w in line.words) {
-                                withStyle(SpanStyle(color = if (w.start <= now) cs.onSurface else cs.onSurface.copy(alpha = 0.38f))) {
-                                    append(w.text)
-                                }
-                            }
-                        }
-                        Text(text, fontSize = size, lineHeight = size * 1.2f, fontWeight = FontWeight.Bold)
-                    } else {
-                        Text(line.text, fontSize = size, lineHeight = size * 1.2f, fontWeight = FontWeight.Bold, color = color)
-                    }
+                    // parole che si alzano mentre vengono cantate, righe lontane sfumate (stile LastWave)
+                    LyricRow(line, active, dist, if (active) now else 0L, (30 * scale).sp)
                     store.romanization?.getOrNull(i)?.takeIf { it.isNotBlank() && s.lyricsRomanize }?.let {
                         Text(it, fontSize = (16 * scale).sp, fontStyle = FontStyle.Italic, color = cs.onSurfaceVariant.copy(alpha = if (active) 1f else 0.6f))
                     }
@@ -562,30 +588,34 @@ private fun SourceRow(title: String, sub: String, selected: Boolean, status: Str
     }
 }
 
-/** Pannello del ritardo sopra i comandi: il testo resta visibile e la musica continua mentre lo regoli. */
+/**
+ * Ritardo di sincronizzazione: pannello compatto sopra il testo (non una finestra a tutto schermo con velo scuro),
+ * così mentre si cambia il valore si vede subito la riga evidenziata spostarsi.
+ */
 @Composable
-private fun OffsetPanel(env: AppEnv, t: Track, onDone: () -> Unit) {
+private fun OffsetPanel(env: AppEnv, t: Track, modifier: Modifier = Modifier, onDismiss: () -> Unit) {
     val store = env.lyrics
+    val cs = MaterialTheme.colorScheme
     @Suppress("UNUSED_VARIABLE") val tick = store.offsetTick
     val v = store.offset(t)
     Surface(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+        modifier = modifier.fillMaxWidth().padding(12.dp),
         shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = cs.surfaceContainerHigh,
+        tonalElevation = 6.dp,
+        shadowElevation = 8.dp,
     ) {
-        Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Timer, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.Filled.Timer, contentDescription = null, tint = cs.onSurfaceVariant)
+                Spacer(Modifier.width(8.dp))
+                Text("Ritardo", style = MaterialTheme.typography.titleSmall, color = cs.onSurfaceVariant)
                 Spacer(Modifier.width(10.dp))
-                Text("Ritardo", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.width(10.dp))
-                Text(fmtOffset(v), style = MaterialTheme.typography.headlineMedium)
-                Spacer(Modifier.weight(1f))
+                Text(fmtOffset(v), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
                 TextButton(onClick = { store.setOffset(t, 0) }) { Text("Azzera") }
-                TextButton(onClick = onDone) { Text("Fatto") }
+                TextButton(onClick = onDismiss) { Text("Fatto") }
             }
-            Spacer(Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 for (d in listOf(-500, -100, 100, 500)) {
                     OutlinedButton(
                         onClick = { store.setOffset(t, v + d) },
@@ -596,10 +626,10 @@ private fun OffsetPanel(env: AppEnv, t: Track, onDone: () -> Unit) {
                     }
                 }
             }
-            Spacer(Modifier.height(6.dp))
             Text(
                 "Positivo: il testo arriva prima · negativo: dopo. Vale solo per questo brano.",
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
             )
         }
     }

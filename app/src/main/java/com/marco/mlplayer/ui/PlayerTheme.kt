@@ -20,7 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /** Colore principale di una copertina: il più vivace, altrimenti il più presente. */
-private fun coverSeed(bmp: Bitmap): Int? {
+internal fun coverSeed(bmp: Bitmap): Int? {
     val p = Palette.from(bmp).maximumColorCount(16).generate()
     val swatch = p.vibrantSwatch ?: p.lightVibrantSwatch ?: p.darkVibrantSwatch ?: p.dominantSwatch
     return swatch?.rgb

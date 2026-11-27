@@ -33,6 +33,7 @@ import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.automirrored.filled.VolumeDown
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Speaker
@@ -151,14 +152,18 @@ fun NowPlayingPage(env: AppEnv) {
 
     Column(
         Modifier.fillMaxSize()
-            .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(cs.primaryContainer.copy(alpha = 0.55f), cs.background)))
+            .softBackground(cs)
             .statusBarsPadding()
     ) {
         // barra in alto
         Row(
-            Modifier.fillMaxWidth().height(56.dp).padding(start = 24.dp, end = 8.dp),
+            Modifier.fillMaxWidth().height(56.dp).padding(start = 8.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // freccia in giù: abbassa il lettore
+            IconButton(onClick = { fb.tapScreen(); env.tab = env.tabBeforePlayer.takeIf { it != Tab.NowPlaying } ?: Tab.Library }) {
+                Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Abbassa il lettore")
+            }
             Text(
                 if (t != null && e.queueSize > 0) "Brano ${e.queueIndex + 1} di ${e.queueSize}" else "In riproduzione",
                 style = MaterialTheme.typography.titleMedium, color = cs.onSurfaceVariant, modifier = Modifier.weight(1f)

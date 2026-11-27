@@ -215,6 +215,7 @@ class AppEnv(val app: MLPlayerApp) {
 
     fun select(t: Tab) {
         if (tab == t) currentNav?.popToRoot()
+        if (t == Tab.NowPlaying && tab != Tab.NowPlaying) tabBeforePlayer = tab
         tab = t
     }
 
@@ -246,7 +247,11 @@ class AppEnv(val app: MLPlayerApp) {
         }
     }
 
+    /** Sezione da cui si è arrivati al lettore: chiudendolo (freccia o trascinamento) si torna lì. */
+    var tabBeforePlayer = Tab.Library
+
     fun openNowPlaying() {
+        if (tab != Tab.NowPlaying) tabBeforePlayer = tab
         overlay = Overlay.None
         tab = Tab.NowPlaying
     }
