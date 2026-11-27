@@ -199,12 +199,12 @@ fun LyricsPage(env: AppEnv) {
                     ).show()
                 }
                 if (keepOn) FilledTonalIconButton(onClick = awakeClick) {
-                    Icon(Icons.Filled.LightMode, contentDescription = "Schermo sempre acceso: attivo")
+                    Icon(Icons.Filled.LightMode, contentDescription = "Schermo sempre acceso: attivo", tint = cs.onSurface)
                 } else IconButton(onClick = awakeClick) {
                     Icon(Icons.Outlined.LightModeOutlined, contentDescription = "Schermo sempre acceso: disattivato", tint = cs.onSurfaceVariant)
                 }
                 IconButton(onClick = { env.feedback.tapScreen(); showOptions = true }) {
-                    Icon(Icons.Filled.Tune, contentDescription = "Opzioni del testo")
+                    Icon(Icons.Filled.Tune, contentDescription = "Opzioni del testo", tint = cs.onSurface)
                 }
             }
         }
@@ -366,7 +366,7 @@ private fun PlainLyrics(env: AppEnv, lines: List<LLine>) {
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         lines.forEachIndexed { i, line ->
-            Text(line.text, fontSize = (20 * s.lyricsScale).sp, lineHeight = (28 * s.lyricsScale).sp, fontWeight = FontWeight.Medium)
+            Text(line.text, fontSize = (20 * s.lyricsScale).sp, lineHeight = (28 * s.lyricsScale).sp, fontWeight = FontWeight.Medium, color = cs.onSurface)
             store.romanization?.getOrNull(i)?.takeIf { it.isNotBlank() && s.lyricsRomanize }?.let {
                 Text(it, fontSize = (15 * s.lyricsScale).sp, fontStyle = FontStyle.Italic, color = cs.onSurfaceVariant)
             }
