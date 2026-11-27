@@ -1,6 +1,5 @@
 package com.marco.mlplayer.ui
 
-import android.graphics.drawable.BitmapDrawable
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -13,10 +12,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import coil.imageLoader
-import coil.request.ImageRequest
-import coil.request.SuccessResult
 import com.marco.mlplayer.data.Covers
 import com.marco.mlplayer.data.Track
 import kotlinx.coroutines.Dispatchers
@@ -28,20 +23,11 @@ import kotlinx.coroutines.withContext
  */
 @Composable
 fun rememberCoverTint(env: AppEnv, t: Track?): Color {
-    val ctx = LocalContext.current
     val file = remember(t?.id, env.library.revision) { t?.let { env.library.trackCoverFile(it) } }
-    val url = t?.coverUrl.orEmpty()
-    val seed by produceState<Int?>(null, file?.path, url, env.library.revision) {
+    val seed by produceState<Int?>(null, file?.path, env.library.revision) {
         value = withContext(Dispatchers.IO) {
             runCatching {
-                val bmp = when {
-                    file != null -> Covers.load(file, 160)
-                    url.isNotBlank() -> {
-                        val req = ImageRequest.Builder(ctx).data(url).size(160).allowHardware(false).build()
-                        ((ctx.imageLoader.execute(req) as? SuccessResult)?.drawable as? BitmapDrawable)?.bitmap
-                    }
-                    else -> null
-                }
+                val bmp = file?.let { Covers.load(it, 160) }
                 bmp?.let { coverSeed(it) }
             }.getOrNull()
         }
